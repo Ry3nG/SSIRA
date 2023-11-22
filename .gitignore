@@ -1,2 +1,8 @@
 # ignore the dataset
 /dataset/
+
+# python related
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
