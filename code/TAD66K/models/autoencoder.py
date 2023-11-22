@@ -32,5 +32,5 @@ class ConvAutoencoder(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
-        x = nn.functional.interpolate(x, size=(224, 224))
+        x = nn.functional.interpolate(x, size=(256, 256))
         return x

@@ -22,6 +22,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+logging.info('Imported packages.')
+logging.info('Training script started.')
+
 # constants
 PATH_DATASET_TAD66K = '/home/zerui/SSIRA/dataset/TAD66K/'
 PATH_LABEL_MERGE_TAD66K_TEST = '/home/zerui/SSIRA/dataset/TAD66K/labels/merge/test.csv'
@@ -34,17 +37,24 @@ logging.info(f'Using device: {device}')
 # define transforms
 transform = transforms.Compose([
     transforms.Resize((256, 256)),  # Resize to 256x256
-    transforms.RandomHorizontalFlip(),  # Randomly flip the images horizontally
-    transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.2),  # Random color jitter
     transforms.ToTensor(),  # Convert image to PyTorch Tensor
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize with ImageNet stats
+])
+
+degradation_transform = transforms.Compose([
+    transforms.Resize((256, 256)),  # Match the original transform size
+    transforms.RandomHorizontalFlip(),  # Randomly flip the images horizontally
+    transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.2),  # Random color jitter,
+    transforms.GaussianBlur(kernel_size=(9, 9), sigma=(0.1, 5)),
+    transforms.Lambda(lambda x: x + 0.1*torch.randn_like(x))  # Adding random noise
 ])
 
 # load the dataset
 train_dataset = TAD66KDataset(
     csv_file = PATH_LABEL_MERGE_TAD66K_TRAIN,
     root_dir = PATH_DATASET_TAD66K,
-    transform = transform
+    transform = transform,
+    degradation_transform=degradation_transform
 )
 
 train_size = int(0.8 * len(train_dataset))
@@ -85,6 +95,10 @@ for epoch in range(num_epochs):
     for degraded_images, original_images in train_loader:
         degraded_images, original_images = degraded_images.to(device), original_images.to(device)
 
+        # Shape logging
+        logging.info(f'Shape of original images: {original_images.shape}')
+        logging.info(f'Shape of degraded images: {degraded_images.shape}')
+        
         optimizer.zero_grad()
         reconstructed_images = model(degraded_images)
         loss = criterion(reconstructed_images, original_images)
