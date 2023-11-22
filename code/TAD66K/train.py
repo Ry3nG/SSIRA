@@ -43,6 +43,7 @@ PATH_LABEL_MERGE_TAD66K_TRAIN = (
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logging.info(f"Using device: {device}")
 
+
 # define transforms
 transform = transforms.Compose(
     [
@@ -81,14 +82,17 @@ val_size = len(train_dataset) - train_size
 train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=512, shuffle=True)
 
 logging.info(f"Train dataset size: {len(train_dataset)}")
 logging.info(f"Validation dataset size: {len(val_dataset)}")
 
 # initialize the model
 model = ConvAutoencoder()
+if torch.cuda.device_count() > 1:
+    logging.info(f"Using {torch.cuda.device_count()} GPUs!")
+    model = torch.nn.DataParallel(model)
 model.to(device)
 
 logging.info(
@@ -98,7 +102,7 @@ logging.info(
 
 # define the loss function and optimizer
 criterion = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001 * 16)
 
 # train the model
 early_stopping_patience = 3  # Number of epochs to wait for improvement before stopping
@@ -139,17 +143,9 @@ for epoch in range(num_epochs):
 
         running_loss += loss.item()
 
-        if (i + 1) % 100 == 0:
-            logging.info(
-                f"Epoch [{epoch+1}/{num_epochs}], Batch [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
-            )
-
-        optimizer.zero_grad()
-        reconstructed_images = model(degraded_images)
-        loss = criterion(reconstructed_images, original_images)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
+        logging.info(
+            f"Epoch [{epoch+1}/{num_epochs}], Batch [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
+        )
 
     # Validation phase
     model.eval()
@@ -199,4 +195,8 @@ for epoch in range(num_epochs):
         f"Epoch {epoch+1}/{num_epochs}, Train Loss: {running_loss/len(train_loader)}, Val Loss: {avg_val_loss}, Avg PSNR: {avg_psnr}"
     )
 
-torch.save(model.state_dict(), f"conv_autoencoder_{today}.pth")
+# Save the trained model
+if isinstance(model, torch.nn.DataParallel):
+    torch.save(model.module.state_dict(), f"conv_autoencoder_{today}.pth")
+else:
+    torch.save(model.state_dict(), f"conv_autoencoder_{today}.pth")
