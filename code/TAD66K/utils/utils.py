@@ -1,4 +1,7 @@
 import torch
+from torch.nn.functional import cosine_similarity
+
+
 
 def save_model(model, optimizer, scheduler, epoch, path):
     checkpoint = {
@@ -17,7 +20,7 @@ def load_model(model, path):
 def validate_model(model, val_loader, criterion, device):
     model.eval()  # Set the model to evaluation mode
     val_loss = 0.0
-    total_distance = 0.0
+    total_cosine_sim = 0.0
     with torch.no_grad():
         for degraded_images, original_images in val_loader:
             degraded_images, original_images = degraded_images.to(device), original_images.to(device)
@@ -25,11 +28,12 @@ def validate_model(model, val_loader, criterion, device):
             loss = criterion(output1, output2)
             val_loss += loss.item()
 
-            # Calculate distance (e.g., Euclidean)
-            distance = torch.sqrt(torch.sum((output1 - output2) ** 2, dim=1)).mean()
-            total_distance += distance.item()
+            # Inside the validate_model function
+            cosine_sim = cosine_similarity(output1, output2).mean()
+            total_cosine_sim += cosine_sim.item()
+
 
     avg_val_loss = val_loss / len(val_loader)
-    avg_distance = total_distance / len(val_loader)
+    avg_distance = total_cosine_sim / len(val_loader)
     return avg_val_loss, avg_distance
 
