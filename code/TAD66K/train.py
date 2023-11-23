@@ -21,17 +21,17 @@ import utils.constants as constants
 import logging
 import datetime
 
-current_time = datetime.datetime.now()
+tic = datetime.datetime.now()
 
 # Setup logging
-log_file = os.path.join(constants.PATH_LOGS, f"train_{current_time}.log")
+log_file = os.path.join(constants.PATH_LOGS, f"train_{tic}.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler(log_file)],
 )
 logging.info("Imported packages.")
-logging.info("Training script started on %s." % current_time)
+logging.info("Training script started on %s." % tic)
 
 # Load the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -134,7 +134,7 @@ for epoch in range(num_epochs):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         early_stopping_counter = 0
-        best_model_path = os.path.join(constants.PATH_MODELS, f"model_best_"+str(current_time)+".pth")
+        best_model_path = os.path.join(constants.PATH_MODELS, f"model_best_"+str(tic)+".pth")
         save_model(model, optimizer, scheduler, epoch, best_model_path)
     else:
         early_stopping_counter += 1
@@ -146,7 +146,7 @@ for epoch in range(num_epochs):
 
     # Save model checkpoint
     checkpoint_path = os.path.join(
-        constants.PATH_MODELS, f"model_epoch_{epoch + 1}_" + str(current_time)+".pth"
+        constants.PATH_MODELS, f"model_epoch_{epoch + 1}_" + str(tic)+".pth"
     )
     save_model(model, optimizer, scheduler, epoch, checkpoint_path)
 
@@ -155,10 +155,10 @@ plt.plot(val_loss_history)
 plt.title("Validation Loss History")
 plt.xlabel("Epoch")
 plt.ylabel("Validation Loss")
-plt.savefig(os.path.join(constants.PATH_PLOTS, f"val_loss_history_"+str(current_time)+".png"))
+plt.savefig(os.path.join(constants.PATH_PLOTS, f"val_loss_history_"+str(tic)+".png"))
 
 logging.info("Training completed.")
-end_time = datetime.datetime.now()
-logging.info("Training script ended on %s." % end_time)
-logging.info("Total training time: %s." % (end_time - current_time))
+toc = datetime.datetime.now()
+logging.info("Training script ended on %s." % toc)
+logging.info("Total training time: %s." % (toc - tic))
 
