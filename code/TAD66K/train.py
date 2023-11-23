@@ -134,7 +134,7 @@ for epoch in range(num_epochs):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         early_stopping_counter = 0
-        best_model_path = os.path.join(constants.PATH_MODELS, f"siamese_best.pth")
+        best_model_path = os.path.join(constants.PATH_MODELS, f"model_best_"+str(current_time)+".pth")
         save_model(model, optimizer, scheduler, epoch, best_model_path)
     else:
         early_stopping_counter += 1
@@ -146,6 +146,6 @@ for epoch in range(num_epochs):
 
     # Save model checkpoint
     checkpoint_path = os.path.join(
-        constants.PATH_MODELS, f"siamese_epoch_{epoch + 1}.pth"
+        constants.PATH_MODELS, f"model_epoch_{epoch + 1}_" + str(current_time)+".pth"
     )
     save_model(model, optimizer, scheduler, epoch, checkpoint_path)
