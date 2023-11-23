@@ -1,0 +1,6 @@
+2023-11-23 15:05:18,824 [INFO] Imported packages.
+2023-11-23 15:05:18,824 [INFO] Training script started on 2023-11-23 15:05:18.824081.
+2023-11-23 15:05:19,405 [INFO] Using device: cuda
+2023-11-23 15:05:19,425 [INFO] NVIDIA A100-PCIE-40GB
+2023-11-23 15:05:24,804 [INFO] Loaded model.
+2023-11-23 15:05:24,805 [INFO] Using 2 GPUs for training.
