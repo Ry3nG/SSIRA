@@ -8,8 +8,12 @@ class ContrastiveModel(nn.Module):
         self.backbone.fc = nn.Identity()  # Remove the final fully connected layer
 
     def forward(self, x):
-        # Assuming x is a tuple of (degraded_images, original_images)
         degraded_images, original_images = x
         features_degraded = self.backbone(degraded_images)
         features_original = self.backbone(original_images)
+
+        # Normalize the features
+        features_degraded = nn.functional.normalize(features_degraded, dim=1)
+        features_original = nn.functional.normalize(features_original, dim=1)
+
         return features_degraded, features_original
