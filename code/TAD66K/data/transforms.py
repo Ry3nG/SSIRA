@@ -16,8 +16,8 @@ def get_standard_transforms():
 # Degradation transformations
 def get_degradation_transforms():
     return transforms.Compose([
-        transforms.RandomHorizontalFlip(),  # Flip the images randomly
-        transforms.GaussianBlur(kernel_size=5),  # Blur the image
-        transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),  # Change brightness, contrast, saturation and hue randomly
-        transforms.RandomRotation(15),  # Random rotation of 30 degrees
+        transforms.RandomHorizontalFlip(),  # flipping images randomly
+        transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0)),  # Slightly blur the image
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # Slightly alter brightness, contrast, and saturation
     ])
+

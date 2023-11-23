@@ -13,7 +13,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from data.dataset import TAD66KDataset
-from models.siamese import SiameseNetwork
+from models.contrasivemodel import ContrastiveModel
+from models.contrasiveloss import ContrastiveLoss
 from data.transforms import get_standard_transforms, get_degradation_transforms
 from utils.utils import save_model, load_model, validate_model
 import utils.constants as constants
@@ -67,7 +68,7 @@ val_loader = DataLoader(
 )
 
 # Load the model
-model = SiameseNetwork().to(device)
+model = ContrastiveModel().to(device)
 logging.info("Loaded model.")
 if torch.cuda.device_count() > 1:
     model = nn.DataParallel(model)
@@ -75,7 +76,7 @@ if torch.cuda.device_count() > 1:
 
 
 # Define loss function and optimizer
-criterion = torch.nn.MSELoss()
+criterion = ContrastiveLoss(temperature=0.5, device=device).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=constants.LEARNING_RATE)
 scheduler = ReduceLROnPlateau(
     optimizer,
@@ -105,9 +106,11 @@ for epoch in range(num_epochs):
 
         optimizer.zero_grad()  # Clear gradients
 
+       # Inside the training loop
         with autocast():
-            output1, output2 = model(degraded_images, original_images)
+            output1, output2 = model((degraded_images, original_images)) # tuple!
             loss = criterion(output1, output2)
+
 
         scaler.scale(loss).backward()  # Scales loss and calls backward()
         scaler.step(optimizer)

@@ -15,7 +15,7 @@ PATH_MODELS = "/home/zerui/SSIRA/code/TAD66K/results/models/"
 PATH_PLOTS = "/home/zerui/SSIRA/code/TAD66K/results/plots/"
 
 # training constants
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 NUM_EPOCHS = 1000
 LEARNING_RATE = 0.001
 NUM_WORKERS = 8
