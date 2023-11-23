@@ -24,7 +24,7 @@ def validate_model(model, val_loader, criterion, device):
     with torch.no_grad():
         for degraded_images, original_images in val_loader:
             degraded_images, original_images = degraded_images.to(device), original_images.to(device)
-            output1, output2 = model(degraded_images, original_images)
+            output1, output2 = model((degraded_images, original_images)) # tuple!
             loss = criterion(output1, output2)
             val_loss += loss.item()
 
