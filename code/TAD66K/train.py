@@ -149,3 +149,16 @@ for epoch in range(num_epochs):
         constants.PATH_MODELS, f"model_epoch_{epoch + 1}_" + str(current_time)+".pth"
     )
     save_model(model, optimizer, scheduler, epoch, checkpoint_path)
+
+# Plot the validation loss history
+plt.plot(val_loss_history)
+plt.title("Validation Loss History")
+plt.xlabel("Epoch")
+plt.ylabel("Validation Loss")
+plt.savefig(os.path.join(constants.PATH_PLOTS, f"val_loss_history_"+str(current_time)+".png"))
+
+logging.info("Training completed.")
+end_time = datetime.datetime.now()
+logging.info("Training script ended on %s." % end_time)
+logging.info("Total training time: %s." % (end_time - current_time))
+
