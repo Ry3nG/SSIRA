@@ -15,15 +15,10 @@ class TAD66KDataset(Dataset):
     def __len__(self):
         return len(self.labels)
 
+    
     def __getitem__(self, idx):
         img_name = os.path.join(self.root_dir, self.labels.iloc[idx, 0])
         image = Image.open(img_name).convert("RGB")
-
-        if self.transform:
-            original_image = self.transform(image)
-
-        degraded_image = original_image
-        if self.degradation_transform:
-            degraded_image = self.degradation_transform(degraded_image)
-
-        return degraded_image, original_image
+        original_image = self.transform(image)
+        degraded_image, type_label, level_label = self.degradation_transform(image)
+        return original_image, degraded_image, type_label, level_label
