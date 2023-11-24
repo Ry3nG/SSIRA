@@ -1,107 +1,117 @@
-import torch
-import torchvision.transforms as transforms
-import torchvision.utils
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
-from models.autoencoder import ConvAutoencoder
-from code.TAD66K.data.dataset import TAD66KDataset
-import numpy as np
+import datetime
 import os
+import torch
+from torch.utils.data import DataLoader
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, classification_report
+from data.dataset import TAD66KDataset
+from models.degradationCNN import DegradationCNN
+from utils.transforms import get_standard_transforms, get_degradation_transforms
+from utils.utils import save_model, load_model, validate_model
+import utils.constants as constants
 
-# constants
-PATH_DATASET_TAD66K = "/home/zerui/SSIRA/dataset/TAD66K/"
-PATH_LABEL_MERGE_TAD66K_TEST = "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/test.csv"
-PATH_LABEL_MERGE_TAD66K_TRAIN = (
-    "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/train.csv"
-)
+import logging
 
+# index_to_class mapping
+index_to_class = {0: 'noise', 1: 'blur', 2: 'color', 3: 'perspective', 4: 'none'}
 
-model_path = "/home/zerui/SSIRA/code/TAD66K/results/models/conv_autoencoder_2023-11-23 13:53:32.192570.pth"
+# Function to display images and predictions
+def visualize_comparisons(original_images, degraded_images, actuals, preds, actual_levels, pred_levels):
+    plt.figure(figsize=(10, 5))
+    for i in range(len(degraded_images)):
+        # Show original image
+        ax = plt.subplot(2, len(degraded_images), i + 1)
+        plt.imshow(original_images[i].cpu().numpy().transpose(1, 2, 0))
+        ax.title.set_text('Original')
+        plt.axis('off')
+
+        # Show degraded image with prediction and level
+        ax = plt.subplot(2, len(degraded_images), i + 1 + len(degraded_images))
+        plt.imshow(degraded_images[i].cpu().numpy().transpose(1, 2, 0))
+        ax.title.set_text(f'Predicted: {index_to_class[preds[i]]}\nLevel: {pred_levels[i]:.2f}\nActual: {index_to_class[actuals[i]]}\nLevel: {actual_levels[i]:.2f}')
+        plt.axis('off')
+
+    plt.tight_layout()
+    plt.savefig('comparison_predictions_levels.png')
+    plt.show()
+
+# load the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = ConvAutoencoder().to(device)
-model.load_state_dict(torch.load(model_path, map_location=device))
+# Load the trained model
+model = DegradationCNN(num_degradation_types=5)
+model_name = "model_best_2023-11-24 16:14:32.702934.pth"
+model_path = constants.PATH_MODELS + model_name
+model = load_model(model, model_path)
+model = model.to(device)  # Move the model to the GPU
 model.eval()
 
-# define transforms
-transform = transforms.Compose(
-    [
-        transforms.Resize((256, 256)),  # Resize to 256x256
-        transforms.ToTensor(),  # Convert image to PyTorch Tensor
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        ),  # Normalize with ImageNet stats
-    ]
+# Setup logging
+tic = datetime.datetime.now()
+log_file = os.path.join(constants.PATH_LOGS, f"evaluate_{model_name}_{tic}.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler(log_file)],
 )
+logging.info("Imported packages.")
 
-degradation_transform = transforms.Compose(
-    [
-        transforms.Resize((256, 256)),  # Match the original transform size
-        transforms.RandomHorizontalFlip(),  # Randomly flip the images horizontally
-        transforms.GaussianBlur(kernel_size=3), 
-        transforms.ColorJitter(brightness=0.25),
-    ]
-)
 
 # load the dataset
-dataset = TAD66KDataset(
-    csv_file=PATH_LABEL_MERGE_TAD66K_TEST,
-    root_dir=PATH_DATASET_TAD66K,
-    transform=transform,
-    degradation_transform=degradation_transform,
+test_dataset = TAD66KDataset(
+    csv_file=constants.PATH_LABEL_MERGE_TAD66K_TEST,
+    root_dir=constants.PATH_DATASET_TAD66K,
+    transform=get_standard_transforms(),
+    degradation_transform=get_degradation_transforms(),
 )
 
-data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
+# Create the dataloader
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=32,
+    shuffle=True,
+    num_workers=constants.NUM_WORKERS,
+)
 
 
-def save_image(img, filename):
-    # Converts a Tensor into an image grid using make_grid and saves it to a file
-    img = torchvision.utils.make_grid(img)
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.figure(figsize=(20, 10))  # Adjust the size as needed
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.axis("off")  # Turn off axis
-    plt.savefig(filename, bbox_inches="tight", pad_inches=0)
-    plt.close()
+all_labels = []
+all_preds = []
 
-
-# Parameters
-num_images_to_display = 4  # How many sets of images you want to display
-batch_size = 4  # You can set this to 1 if you want to use one image at a time
-
-# Update DataLoader to have the correct batch size
-data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-# Accumulators for images
-original_images_grid = []
-degraded_images_grid = []
-reconstructed_images_grid = []
-
-# Process images
-model.eval()
+# Evaluate the model
 with torch.no_grad():
-    for _ in range(num_images_to_display // batch_size):
-        try:
-            degraded_images, original_images = next(iter(data_loader))
-        except StopIteration:
-            break
+    for i,(original_images, degraded_images, labels_type, labels_level) in enumerate(test_loader):
+        degraded_images = degraded_images.to(device)
+        labels_type = labels_type.numpy()
+        outputs, level_outputs = model(degraded_images)
+        _, preds = torch.max(outputs, 1)
+        pred_levels = level_outputs.view(-1).cpu().numpy()
+        all_labels.extend(labels_type)
+        all_preds.extend(preds.cpu().numpy())
 
-        degraded_images, original_images = degraded_images.to(
-            device
-        ), original_images.to(device)
-        reconstructed_images = model(degraded_images).cpu()
+        # Visualize the first batch of images
+        if i == 0:
+            visualize_comparisons(
+                original_images[:5], 
+                degraded_images[:5], 
+                labels_type[:5], 
+                preds[:5].cpu().numpy(),
+                labels_level[:5], 
+                pred_levels[:5]
+            )
 
-        original_images_grid.append(original_images.cpu())
-        degraded_images_grid.append(degraded_images.cpu())
-        reconstructed_images_grid.append(reconstructed_images)
+# Metrics calculation
+print(classification_report(all_labels, all_preds))
 
-# Concatenate all the batches into a single grid
-original_images_grid = torch.cat(original_images_grid, dim=0)
-degraded_images_grid = torch.cat(degraded_images_grid, dim=0)
-reconstructed_images_grid = torch.cat(reconstructed_images_grid, dim=0)
+# Confusion matrix
+conf_mat = confusion_matrix(all_labels, all_preds)
+sns.heatmap(conf_mat, annot=True, fmt='d')
+plt.xlabel('Predicted labels')
+plt.ylabel('True labels')
+plt.title('Confusion Matrix')
+# Save results and plots
+plt.savefig('confusion_matrix.png')
+plt.show()
 
-# Save the grid of images
-save_image(original_images_grid, "original_images_grid.png")
-save_image(degraded_images_grid, "degraded_images_grid.png")
-save_image(reconstructed_images_grid, "reconstructed_images_grid.png")
+
