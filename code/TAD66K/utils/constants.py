@@ -8,6 +8,8 @@ PATH_LABEL_MERGE_TAD66K_TEST = "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/te
 PATH_LABEL_MERGE_TAD66K_TRAIN = (
     "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/train.csv"
 )
+PATH_LABEL_DEGRADATION_PRETEXT_TAD66K_TRAIN = "/home/zerui/SSIRA/dataset/TAD66K/labels/degradation_pretext/train.csv"
+PATH_LABEL_DEGRADATION_PRETEXT_TAD66K_TEST = "/home/zerui/SSIRA/dataset/TAD66K/labels/degradation_pretext/test.csv"
 
 #result constants
 PATH_LOGS = "/home/zerui/SSIRA/code/TAD66K/results/logs/"
@@ -15,7 +17,7 @@ PATH_MODELS = "/home/zerui/SSIRA/code/TAD66K/results/models/"
 PATH_PLOTS = "/home/zerui/SSIRA/code/TAD66K/results/plots/"
 
 # training constants
-BATCH_SIZE = 128
+BATCH_SIZE = 512
 NUM_EPOCHS = 1000
 LEARNING_RATE = 0.001
 NUM_WORKERS = 8
