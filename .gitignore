@@ -1,6 +1,9 @@
 # ignore the dataset
 /dataset/
 
+# ignore the result
+/result/
+
 # python related
 *.pyc
 *.pyo
