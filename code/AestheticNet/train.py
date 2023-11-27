@@ -1,5 +1,8 @@
+from matplotlib import pyplot as plt
 import torch
 import torch.optim as optim
+from torch.nn import DataParallel
+from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
 from data.dataset import TAD66KDataset, AVADataset
 from models.aestheticNet import AestheticNet
@@ -7,145 +10,362 @@ from utils.losses import ReconstructionLoss, AestheticScoreLoss
 from utils.constants import *
 from utils.transforms import CustomTransform
 
+import argparse
 import logging
 import datetime
 import os
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train AestheticNet")
+    parser.add_argument(
+        "--batch_size", type=int, default=BATCH_SIZE, help="Batch size for training"
+    )
+    parser.add_argument(
+        "--pretext_num_epochs",
+        type=int,
+        default=PRETEXT_NUM_EPOCHS,
+        help="Number of epochs for pretext training",
+    )
+    parser.add_argument(
+        "--aes_num_epochs",
+        type=int,
+        default=AES_NUM_EPOCHS,
+        help="Number of epochs for aesthetic training",
+    )
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=LEARNING_RATE,
+        help="Learning rate for training",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=NUM_WORKERS,
+        help="Number of workers for training",
+    )
+    parser.add_argument(
+        "--train_val_split_ratio",
+        type=float,
+        default=TRAIN_VAL_SPLIT_RATIO,
+        help="Ratio of training to validation data",
+    )
+    parser.add_argument(
+        "--save_freq", type=int, default=SAVE_FREQ, help="Frequency of saving model"
+    )
+    parser.add_argument(
+        "--lr_patience",
+        type=int,
+        default=LR_PATIENCE,
+        help="Patience for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--lr_factor",
+        type=float,
+        default=LR_FACTOR,
+        help="Factor for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--lr_mode", type=str, default=LR_MODE, help="Mode for learning rate scheduler"
+    )
+    parser.add_argument(
+        "--lr_verbose",
+        type=bool,
+        default=LR_VERBOSE,
+        help="Verbosity for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--lr_min",
+        type=float,
+        default=LR_MIN,
+        help="Minimum learning rate for learning rate scheduler",
+    )
 
-def train(model, dataloader, criterion,optimizer, device, phase):
-    model.train() # set model to training mode
+    return parser.parse_args()
+
+
+def train(model, dataloader, criterion, optimizer, scaler, device, phase, epoch):
+    model.train()  # set model to training mode
     total_loss = 0.0
 
-    for batch in dataloader:
-        if phase == 'pretext':
+    for batch_idx, batch in enumerate(dataloader):
+        if phase == "pretext":
             inputs = batch.to(device)
             optimizer.zero_grad()
-            outputs = model(inputs, phase = phase)
+            outputs = model(inputs, phase=phase)
             loss = criterion(outputs, inputs)
-        elif phase == 'aesthetic':
+        elif phase == "aesthetic":
             images, scores = batch
-            images,scores = images.to(device), scores.to(device)
+            images, scores = images.to(device), scores.to(device)
             optimizer.zero_grad()
-            outputs = model(images, phase = phase)
+            outputs = model(images, phase=phase)
             loss = criterion(outputs, scores)
-        
-        loss.backward()
-        optimizer.step()
+
+        # Scale loss and call backward
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
         total_loss += loss.item()
+
+        if batch_idx % 10 == 0:
+            # Log per-batch information
+            logging.info(
+                f"Epoch {epoch+1}, Phase {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.4f}"
+            )
 
     return total_loss / len(dataloader)
 
+
 def validate(model, dataloader, criterion, device, phase):
-    model.eval() # set model to evaluation mode
+    model.eval()  # set model to evaluation mode
     total_loss = 0.0
 
     with torch.no_grad():
         for batch in dataloader:
-            if phase == 'pretext':
+            if phase == "pretext":
                 inputs = batch.to(device)
-                outputs = model(inputs, phase = phase)
+                outputs = model(inputs, phase=phase)
                 loss = criterion(outputs, inputs)
-            elif phase == 'aesthetic':
+            elif phase == "aesthetic":
                 images, scores = batch
-                images,scores = images.to(device), scores.to(device)
-                outputs = model(images, phase = phase)
+                images, scores = images.to(device), scores.to(device)
+                outputs = model(images, phase=phase)
                 loss = criterion(outputs, scores)
             total_loss += loss.item()
 
     return total_loss / len(dataloader)
 
-def save_model(model, epoch, save_dir, filename):
+
+def save_model(model, epoch, save_dir, filename, current_time):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}.pth")
+    save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}_{current_time}.pth")
     torch.save(model.state_dict(), save_path)
 
+
 def setup_logging(current_time):
-    if not os.path.exists(PATH_LOGS):
-        os.makedirs(PATH_LOGS)
-    logging.basicConfig(filename=os.path.join(PATH_LOGS, f'training {current_time}.log'),
-                        level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s',
-                        filemode='w')
+    log_file = os.path.join(PATH_LOGS, f"train_{current_time}.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(),
+        ],
+    )
+
 
 def main():
     # save training start time
     tic = datetime.datetime.now()
+    tic = tic.strftime("%Y-%m-%d_%H-%M-%S")
 
     # setup logging
     setup_logging(tic)
 
-    # training start message
-    logging.info(f'Training started at {tic}')
+    # parse arguments
+    logging.info("Parsing arguments...")
+    args = parse_args()
+    BATCH_SIZE = args.batch_size
+    PRETEXT_NUM_EPOCHS = args.pretext_num_epochs
+    AES_NUM_EPOCHS = args.aes_num_epochs
+    LEARNING_RATE = args.learning_rate
+    NUM_WORKERS = args.num_workers
+    TRAIN_VAL_SPLIT_RATIO = args.train_val_split_ratio
+    SAVE_FREQ = args.save_freq
+    LR_PATIENCE = args.lr_patience
+    LR_FACTOR = args.lr_factor
+    LR_MODE = args.lr_mode
+    LR_VERBOSE = args.lr_verbose
+    LR_MIN = args.lr_min
 
+    # training start message
+    logging.info(f"Training started at {tic}")
 
     # Logging the hyperparameters
-    logging.info(f'Batch Size: {BATCH_SIZE}')
-    logging.info(f'Number of Epochs: {NUM_EPOCHS}')
-    logging.info(f'Learning Rate: {LEARNING_RATE}')
-
+    logging.info(f"Batch Size: {BATCH_SIZE}")
+    logging.info(f"Number of Epochs for Pretext Phase: {PRETEXT_NUM_EPOCHS}")
+    logging.info(f"Number of Epochs for Aesthetic Phase: {AES_NUM_EPOCHS}")
+    logging.info(f"Learning Rate: {LEARNING_RATE}")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    logging.info(f'Using device: {device}')
+    logging.info(f"Using device: {device}")
     logging.info(torch.cuda.get_device_name(device))
 
     # define transforms
-    custom_transform_options = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
-    custom_transform = CustomTransform(custom_transform_options)
-
-
-    # initialize and split the datasets for training and validation
-    full_train_dataset_pretext = TAD66KDataset(csv_file=PATH_LABEL_MERGE_TAD66K_TRAIN, 
-                                           root_dir=PATH_DATASET_TAD66K, 
-                                           custom_transform_options=custom_transform_options)
-
-    train_size_pretext = int(TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_pretext))
-    val_size_pretext = len(full_train_dataset_pretext) - train_size_pretext
-    train_dataset_pretext, val_dataset_pretext = random_split(full_train_dataset_pretext, [train_size_pretext, val_size_pretext])
-
-    full_train_dataset_aesthetic = AVADataset(txt_file=PATH_AVA_TXT, 
-                                          root_dir=PATH_AVA_IMAGE, 
-                                          custom_transform_options=custom_transform_options)
-    train_size_aesthetic = int(TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_aesthetic))
-    val_size_aesthetic = len(full_train_dataset_aesthetic) - train_size_aesthetic
-    train_dataset_aesthetic, val_dataset_aesthetic = random_split(full_train_dataset_aesthetic, [train_size_aesthetic, val_size_aesthetic])
-
-    # create dataloaders
-    train_loader_pretext = DataLoader(train_dataset_pretext, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
-    val_loader_pretext = DataLoader(val_dataset_pretext, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
-
-    train_loader_aesthetic = DataLoader(train_dataset_aesthetic, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
-    val_loader_aesthetic = DataLoader(val_dataset_aesthetic, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+    custom_transform_options = list(range(24))
 
     # initialize the model and loss function
-    model = AestheticNet().to(device)
+    model = AestheticNet()
+    if torch.cuda.device_count() > 1:
+        model = DataParallel(model)
+    model.to(device)
     criterion_pretext = ReconstructionLoss().to(device)
     criterion_aesthetic = AestheticScoreLoss().to(device)
+
+    # Initialize GradScaler for mixed precision
+    scaler_pretext = GradScaler()
+    scaler_aesthetic = GradScaler()
 
     # initialize the optimizer
     optimizer_pretext = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     optimizer_aesthetic = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # training and validation loop 
-    for epoch in range(NUM_EPOCHS):
+    # Initialize the learning rate scheduler
+    scheduler_pretext = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer_pretext,
+        mode=LR_MODE,
+        factor=LR_FACTOR,
+        patience=LR_PATIENCE,
+        verbose=LR_VERBOSE,
+        min_lr=LR_MIN,
+    )
+    scheduler_aesthetic = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer_aesthetic,
+        mode=LR_MODE,
+        factor=LR_FACTOR,
+        patience=LR_PATIENCE,
+        verbose=LR_VERBOSE,
+        min_lr=LR_MIN,
+    )
+
+    logging.info("Model initialized.")
+
+    # initialize and split the datasets for training and validation
+    full_train_dataset_pretext = TAD66KDataset(
+        csv_file=PATH_LABEL_MERGE_TAD66K_TRAIN,
+        root_dir=PATH_DATASET_TAD66K,
+        custom_transform_options=custom_transform_options,
+    )
+
+    train_size_pretext = int(TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_pretext))
+    val_size_pretext = len(full_train_dataset_pretext) - train_size_pretext
+    train_dataset_pretext, val_dataset_pretext = random_split(
+        full_train_dataset_pretext, [train_size_pretext, val_size_pretext]
+    )
+
+    full_train_dataset_aesthetic = AVADataset(
+        txt_file=PATH_AVA_TXT,
+        root_dir=PATH_AVA_IMAGE,
+        custom_transform_options=custom_transform_options,
+    )
+    train_size_aesthetic = int(
+        TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_aesthetic)
+    )
+    val_size_aesthetic = len(full_train_dataset_aesthetic) - train_size_aesthetic
+    train_dataset_aesthetic, val_dataset_aesthetic = random_split(
+        full_train_dataset_aesthetic, [train_size_aesthetic, val_size_aesthetic]
+    )
+
+    logging.info("Datasets initialized.")
+
+    # create dataloaders
+    train_loader_pretext = DataLoader(
+        train_dataset_pretext,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=NUM_WORKERS,
+    )
+    val_loader_pretext = DataLoader(
+        val_dataset_pretext,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+    )
+
+    train_loader_aesthetic = DataLoader(
+        train_dataset_aesthetic,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=NUM_WORKERS,
+    )
+    val_loader_aesthetic = DataLoader(
+        val_dataset_aesthetic,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+    )
+
+    val_losses_pretext = []
+    val_losses_aesthetic = []
+
+    # training and validation loop
+    for epoch in range(PRETEXT_NUM_EPOCHS):
         # Train in pretext phase
-        train_loss_pretext = train(model, train_loader_pretext, criterion_pretext, optimizer_pretext, device, 'pretext')
-        val_loss_pretext = validate(model, val_loader_pretext, criterion_pretext, device, 'pretext')
-        logging.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.4f}, Val Loss: {val_loss_pretext:.4f}')
+        train_loss_pretext = train(
+            model,
+            train_loader_pretext,
+            criterion_pretext,
+            optimizer_pretext,
+            scaler_pretext,
+            device,
+            "pretext",
+            epoch,
+        )
+        val_loss_pretext = validate(
+            model, val_loader_pretext, criterion_pretext, device, "pretext"
+        )
+        old_lr = optimizer_pretext.param_groups[0]["lr"]
+        scheduler_pretext.step(val_loss_pretext)
+        new_lr = optimizer_pretext.param_groups[0]["lr"]
+        if old_lr != new_lr:
+            logging.info(
+                f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Learning Rate Changed from {old_lr} to {new_lr}"
+            )
 
-        
+        val_losses_pretext.append(val_loss_pretext)
 
-    for epoch in range(NUM_EPOCHS):
+        logging.info(
+            f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.4f}, Val Loss: {val_loss_pretext:.4f}"
+        )
+        # Save model at specified frequency
+        if (epoch + 1) % SAVE_FREQ == 0 or epoch == PRETEXT_NUM_EPOCHS - 1:
+            save_model(model, epoch, PATH_MODEL_RESULTS, "aestheticNet", tic)
+
+    for epoch in range(AES_NUM_EPOCHS):
         # Train in aesthetic phase
-        train_loss_aesthetic = train(model, train_loader_aesthetic, criterion_aesthetic, optimizer_aesthetic, device, 'aesthetic')
-        val_loss_aesthetic = validate(model, val_loader_aesthetic, criterion_aesthetic, device, 'aesthetic')
-        logging.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Aesthetic Phase, Train Loss: {train_loss_aesthetic:.4f}, Val Loss: {val_loss_aesthetic:.4f}')
-    
-    # Save model
-    save_model(model, epoch, PATH_MODEL_RESULTS, 'aestheticNet')
+        train_loss_aesthetic = train(
+            model,
+            train_loader_aesthetic,
+            criterion_aesthetic,
+            optimizer_aesthetic,
+            scaler_aesthetic,
+            device,
+            "aesthetic",
+            epoch,
+        )
+        val_loss_aesthetic = validate(
+            model, val_loader_aesthetic, criterion_aesthetic, device, "aesthetic"
+        )
+        old_lr = optimizer_aesthetic.param_groups[0]["lr"]
+        scheduler_aesthetic.step(val_loss_aesthetic)
+        new_lr = optimizer_aesthetic.param_groups[0]["lr"]
+        if old_lr != new_lr:
+            logging.info(
+                f"Epoch {epoch+1}/{AES_NUM_EPOCHS}, Aesthetic Phase, Learning Rate Changed from {old_lr} to {new_lr}"
+            )
+        val_losses_aesthetic.append(val_loss_aesthetic)
+
+        logging.info(
+            f"Epoch {epoch+1}/{AES_NUM_EPOCHS}, Aesthetic Phase, Train Loss: {train_loss_aesthetic:.4f}, Val Loss: {val_loss_aesthetic:.4f}"
+        )
+        # Save model at specified frequency
+        if (epoch + 1) % SAVE_FREQ == 0 or epoch == AES_NUM_EPOCHS - 1:
+            save_model(model, epoch, PATH_MODEL_RESULTS, "aestheticNet", tic)
+
+    # Plotting the validation loss
+    plt.figure(figsize=(10, 5))
+    plt.plot(val_losses_pretext, label="Pretext Validation Loss")
+    plt.plot(val_losses_aesthetic, label="Aesthetic Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Validation Losses Over Epochs")
+    plt.legend()
+    plt.savefig(os.path.join(PATH_PLOTS, "val_losses.png"))
+    plt.show()
 
 
 if __name__ == "__main__":
     main()
-    

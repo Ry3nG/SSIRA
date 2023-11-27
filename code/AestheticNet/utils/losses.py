@@ -25,5 +25,6 @@ class AestheticScoreLoss(nn.Module):
         super(AestheticScoreLoss, self).__init__()
 
     def forward(self, predicted_scores, true_scores):
-        # Assuming the scores are normalized between 0 and 1
+        # Reshape predicted_scores to match the shape of true_scores
+        predicted_scores = predicted_scores.view(-1)  # Flatten the predicted_scores
         return F.l1_loss(predicted_scores, true_scores)

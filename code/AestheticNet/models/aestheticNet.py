@@ -4,14 +4,16 @@ from .encoder import Encoder
 from .decoder import Decoder
 
 class AestheticNet(nn.Module):
-    def __init__(self, encoded_image_size=2048, num_classes=1):
+    def __init__(self, encoded_image_size=2048, num_classes=1,input_image_size=256):
         super(AestheticNet, self).__init__()
         self.encoder = Encoder()
         self.decoder = Decoder(input_channels=encoded_image_size)
 
+        # Compute the flattened size of the encoded image
+        self.flattened_size = self._get_flattened_size(input_image_size)
         # Regression head for predicting aesthetic scores
         self.regression_head = nn.Sequential(
-            nn.Linear(encoded_image_size, 512),
+            nn.Linear(self.flattened_size, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(512, 256),
@@ -21,6 +23,11 @@ class AestheticNet(nn.Module):
             nn.Sigmoid()  # Use Sigmoid if the scores are normalized between 0 and 1
         )
 
+    def _get_flattened_size(self, input_image_size):
+        # Assuming square input images and standard ResNet output size
+        feature_map_size = input_image_size // 32  # ResNet reduces size by a factor of 32
+        return feature_map_size * feature_map_size * 2048
+    
     def forward(self, x, phase='pretext'):
         if phase == 'pretext':
             # In the pretext phase, use both encoder and decoder for reconstruction

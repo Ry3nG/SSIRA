@@ -88,8 +88,10 @@ def download_image(image_id, download_dir):
 
 def is_corrupted(img_path):
     try:
-        with Image.open(img_path) as img:
-            img.verify()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            with Image.open(img_path) as img:
+                img.verify()
         return False
     except Exception:
         return True
@@ -143,7 +145,11 @@ def check_image_integrity(dataset):
                 ok_images.append(image_id)
         
         print(f"Number of corrupted images: {len(corrupted_images)}")
+
         print(f"Number of verified images: {len(ok_images)}")
+
+        print(f"Currupted images: {corrupted_images}")
+
 
         
 
@@ -154,8 +160,8 @@ def main():
     dataset = AVADataset(
         txt_file=txt_file, root_dir=root_dir, transform=default_transform
     )
-    #check_and_download_images(dataset)
-    check_image_integrity(dataset)
+    check_and_download_images(dataset)
+    #check_image_integrity(dataset)
 
 
 if __name__ == "__main__":
