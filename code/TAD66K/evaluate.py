@@ -42,7 +42,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load the trained model
 model = DegradationCNN(num_degradation_types=5)
-model_name = "model_best_2023-11-24 16:14:32.702934.pth"
+model_name = "model_epoch_90_2023-11-25 11:29:02.937164.pth"
 model_path = constants.PATH_MODELS + model_name
 model = load_model(model, model_path)
 model = model.to(device)  # Move the model to the GPU
@@ -105,6 +105,7 @@ with torch.no_grad():
 print(classification_report(all_labels, all_preds))
 
 # Confusion matrix
+plt.figure(figsize=(10, 10))
 conf_mat = confusion_matrix(all_labels, all_preds)
 sns.heatmap(conf_mat, annot=True, fmt='d')
 plt.xlabel('Predicted labels')

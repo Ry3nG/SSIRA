@@ -93,7 +93,9 @@ optimizer = optim.Adam(model.parameters(), lr=constants.LEARNING_RATE)
 criterion_type = nn.CrossEntropyLoss()
 criterion_level = nn.MSELoss()
 
-scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=constants.LR_DECAY_FACTOR, patience=constants.LR_DECAY_PATIENCE, threshold=constants.LR_DECAY_THRESHOLD, verbose=True)
+#scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=constants.LR_DECAY_FACTOR, patience=constants.LR_DECAY_PATIENCE, threshold=constants.LR_DECAY_THRESHOLD, verbose=True)
+# place holder for scheduler
+scheduler = None
 
 # Train the model
 scaler = GradScaler()
@@ -140,6 +142,8 @@ for epoch in range(num_epochs):
     # After validation
     val_loss = validate_model(model, val_loader, criterion_type, criterion_level, device)
     logging.info(f"Epoch [{epoch + 1}/{num_epochs}] Validation Loss: {val_loss:.4f}")
+    
+    """
     old_lr = optimizer.param_groups[0]["lr"]
     scheduler.step(val_loss)
     new_lr = optimizer.param_groups[0]["lr"]
@@ -152,6 +156,7 @@ for epoch in range(num_epochs):
             f"Learning rate {new_lr} is below the threshold {constants.LR_DECAY_THRESHOLD}. Training stopped."
         )
         break
+    """
     val_loss_history.append(val_loss)
 
     logging.info("----------------------------------------------")
@@ -190,3 +195,8 @@ toc = datetime.datetime.now()
 
 logging.info("Training time: %s." % (toc - tic))
 logging.info("Training script ended on %s." % toc)
+
+
+logging.info("Epochs trained: %d" % epoch)
+logging.info("Best validation loss: %f" % best_val_loss)
+
