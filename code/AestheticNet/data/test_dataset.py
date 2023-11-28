@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from torchvision import transforms
 from torch.utils.data import Dataset
 import warnings
@@ -93,6 +93,8 @@ def is_corrupted(img_path):
             with Image.open(img_path) as img:
                 img.verify()
         return False
+    except (OSError, UnidentifiedImageError):
+        return True
     except Exception:
         return True
 
@@ -150,8 +152,34 @@ def check_image_integrity(dataset):
 
         print(f"Currupted images: {corrupted_images}")
 
+def check_image_integrity_by_id(dataset, image_id):
+    img_path = os.path.join(dataset.root_dir, f"{image_id}.jpg")
 
-        
+    if not os.path.exists(img_path):
+        print(f"Image {image_id} is missing.")
+        return False
+
+    if is_corrupted(img_path):
+        print(f"Image {image_id} is corrupted.")
+        return False
+
+    print(f"Image {image_id} is verified.")
+    return True
+
+def redownload_image(dataset, image_id):
+    img_path = os.path.join(dataset.root_dir, f"{image_id}.jpg")
+
+    if os.path.exists(img_path):
+        os.remove(img_path)
+
+    if download_image(image_id, dataset.root_dir):
+        if not is_corrupted(img_path):
+            print(f"Image {image_id} successfully downloaded and verified.")
+            return True
+        else:
+            print(f"Downloaded image {image_id} is corrupted.")
+            return False
+   
 
 
 def main():
@@ -160,8 +188,19 @@ def main():
     dataset = AVADataset(
         txt_file=txt_file, root_dir=root_dir, transform=default_transform
     )
-    check_and_download_images(dataset)
+    #check_and_download_images(dataset)
     #check_image_integrity(dataset)
+    check_image_integrity_by_id(dataset, 371434)
+    
+    # use the dataset getitem function to get the image
+    
+    image, score = dataset.__getitem__(23848)
+    print(f"Image {23848} has score {score}")
+    
+
+
+
+
 
 
 if __name__ == "__main__":

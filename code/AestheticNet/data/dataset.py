@@ -1,7 +1,8 @@
+import logging
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from PIL import Image
+from PIL import Image,UnidentifiedImageError
 import os
 import pandas as pd
 
@@ -42,13 +43,20 @@ class TAD66KDataset(Dataset):
         return len(self.data_frame)
 
     def __getitem__(self, idx):
-        img_name = os.path.join(self.root_dir, self.data_frame.iloc[idx, 0])
-        image = Image.open(img_name).convert("RGB")
+        try:
+            img_name = os.path.join(self.root_dir, self.data_frame.iloc[idx, 0])
+            image = Image.open(img_name).convert("RGB")
+        except (OSError, UnidentifiedImageError) as e:
+            logging.error(f"Error opening image: {img_name}")
+            # handle the error by skipping the image
+            return self.__getitem__(idx + 1)
+        
 
         if self.transform:
             image = self.transform(image)
 
         return image
+
 
 
 class AVADataset(Dataset):
@@ -76,10 +84,14 @@ class AVADataset(Dataset):
         return len(self.data_frame)
 
     def __getitem__(self, idx):
-        image_id = self.data_frame.iloc[idx, 1]
-        img_name = os.path.join(self.root_dir, f"{image_id}.jpg")
-        image = Image.open(img_name).convert("RGB")
-
+        try:
+            image_id = self.data_frame.iloc[idx, 1]
+            img_name = os.path.join(self.root_dir, f"{image_id}.jpg")
+            image = Image.open(img_name).convert("RGB")
+        except (OSError, UnidentifiedImageError) as e:
+            logging.error(f"Error opening image: {img_name}")
+            # handle the error by skipping the image
+            return self.__getitem__(idx + 1)
         # compute the aesthetic score as the average of the ratings
         ratings = self.data_frame.iloc[idx, 2:12].values
         score = sum((i + 1) * ratings[i] for i in range(10)) / sum(ratings)
