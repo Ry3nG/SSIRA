@@ -12,15 +12,17 @@ PATH_LABEL_MERGE_TAD66K_TRAIN = (
 
 PATH_AVA_TXT = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/AVA.txt"
 PATH_AVA_IMAGE = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/image"
+PATH_AVA_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test.jpgl"
 
-
+PATH_AVA_GENERIC_TRAIN_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_ls_train_clean.jpgl"
+PATH_AVA_GENERIC_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test_clean.jpgl"
 # training constants
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 PRETEXT_NUM_EPOCHS = 100
 AES_NUM_EPOCHS = 100
 
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 NUM_WORKERS = 32
 TRAIN_VAL_SPLIT_RATIO = 0.9
 
@@ -36,4 +38,4 @@ LR_PATIENCE = 5
 LR_FACTOR = 0.1
 LR_MODE = "min"
 LR_VERBOSE = True
-LR_MIN = 1e-7
+LR_MIN = 1e-8
