@@ -91,8 +91,21 @@ class AVADataset(Dataset):
             else:
                 # Exclude rows with IDs in the list
                 self.data_frame = self.data_frame[~self.data_frame[1].isin(self.ids)]
+            
+            # Assuming self.ids is your list of IDs and self.data_frame[1] contains the IDs from AVA dataset
+            id_set_from_list = set(self.ids)
+            id_set_from_ava = set(self.data_frame[1])
 
-        logging.info(f"Filtered dataset size: {len(self.data_frame)}")
+            missing_ids = id_set_from_list.difference(id_set_from_ava)
+            logging.info(f"Missing IDs: {missing_ids}")
+            logging.info(f"Number of missing IDs: {len(missing_ids)}")
+
+            logging.info(f"Filtered dataset size: {len(self.data_frame)}")
+        else: # self.ids is None
+            # do nothing
+            pass
+
+        
 
 
     def __len__(self):
@@ -127,3 +140,43 @@ class AVADataset(Dataset):
 # Example instantiation of the dataset
 # tad66k_dataset = TAD66KDataset(csv_file='path_to_tad66k_csv', root_dir='path_to_tad66k_images', transform=transform)
 # ava_dataset = AVADataset(txt_file='path_to_ava_txt', root_dir='path_to_ava_images', transform=transform)
+
+class TAD66kDataset_Labeled(Dataset):
+    """Labeled TAD66K Dataset"""
+
+    def __init__(self, csv_file, root_dir, custom_transform_options, default_transform=True):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations and labels.
+            root_dir (string): Directory with all the images.
+            custom_transform_options (list): List of options for custom transforms.
+            default_transform (bool): Whether to apply default transform.
+        """
+        self.data_frame = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        transform_list = [CustomTransform(custom_transform_options)]
+        if default_transform:
+            transform_list += [
+                transforms.Resize((256, 256)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ]
+        self.transform = transforms.Compose(transform_list)
+
+    def __len__(self):
+        return len(self.data_frame)
+
+    def __getitem__(self, idx):
+        # Assuming the first column in CSV is the image name and the second column is the label
+        img_name = os.path.join(self.root_dir, self.data_frame.iloc[idx, 0])
+        label = self.data_frame.iloc[idx, 1]  # Adjust index based on your CSV structure
+
+        try:
+            image = Image.open(img_name).convert("RGB")
+            if self.transform:
+                image = self.transform(image)
+        except (OSError, UnidentifiedImageError) as e:
+            logging.error(f"Error opening image: {img_name}, skipping image.")
+            return None  # Handle this appropriately in your training loop
+
+        return image, label
