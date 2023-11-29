@@ -82,11 +82,17 @@ def parse_args():
         default=LR_MIN,
         help="Minimum learning rate for learning rate scheduler",
     )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default=None,
+        help="Path to a saved checkpoint (default: None)",
+    )
 
     return parser.parse_args()
 
 
-def train(model, dataloader, criterion, optimizer, scaler, device, phase, epoch):
+def train(model, dataloader, criterion, optimizer, scaler, device, phase, epoch, total_epochs):
     model.train()  # set model to training mode
     total_loss = 0.0
 
@@ -110,9 +116,9 @@ def train(model, dataloader, criterion, optimizer, scaler, device, phase, epoch)
 
         total_loss += loss.item()
 
-        if batch_idx%NUM_WORKERS == 0:
+        if batch_idx % NUM_WORKERS == 0:
             logging.info(
-                f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Phase: {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.8f}"
+                f"Epoch {epoch+1}/{total_epochs}, Phase: {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.8f}"
             )
 
     return total_loss / len(dataloader)
@@ -144,6 +150,32 @@ def save_model(model, epoch, save_dir, filename, current_time):
     save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}_{current_time}.pth")
     torch.save(model.state_dict(), save_path)
 
+
+def save_training_checkpoint(
+    model, epoch, save_dir, filename, current_time, optimizer, scheduler, scaler
+):
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}_{current_time}.pth")
+    torch.save(
+        {
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler.state_dict(),
+        },
+        save_path,
+    )
+
+def load_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path):
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+    scaler.load_state_dict(checkpoint["scaler_state_dict"])
+    epoch = checkpoint["epoch"]
+    return model, optimizer, scheduler, scaler, epoch
 
 def setup_logging(current_time):
     log_file = os.path.join(PATH_LOGS, f"train_{current_time}.log")
@@ -307,40 +339,69 @@ def main():
     val_losses_pretext = []
     val_losses_aesthetic = []
 
-    # training and validation loop
-    for epoch in range(PRETEXT_NUM_EPOCHS):
-        # Train in pretext phase
-        train_loss_pretext = train(
-            model,
-            train_loader_pretext,
-            criterion_pretext,
-            optimizer_pretext,
-            scaler_pretext,
-            device,
-            "pretext",
-            epoch,
-        )
-        val_loss_pretext = validate(
-            model, val_loader_pretext, criterion_pretext, device, "pretext"
-        )
-        old_lr = optimizer_pretext.param_groups[0]["lr"]
-        scheduler_pretext.step(val_loss_pretext)
-        new_lr = optimizer_pretext.param_groups[0]["lr"]
-        if old_lr != new_lr:
-            logging.info(
-                f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Learning Rate Changed from {old_lr} to {new_lr}"
+    start_epoch = 0
+    start_mode = "pretext"
+    if args.checkpoint_path:
+        # decide it is pretext or aesthetic based on the checkpoint path
+        if "pretext" in args.checkpoint_path:
+            # pretext
+            model, optimizer_pretext, scheduler_pretext, scaler_pretext, start_epoch = load_checkpoint(model, optimizer_pretext, scheduler_pretext, scaler_pretext, args.checkpoint_path)
+            start_mode = "pretext"
+            logging.info(f"Loaded pretext checkpoint from {args.checkpoint_path}")
+        elif "aesthetic" in args.checkpoint_path:
+            # aesthetic
+            model, optimizer_aesthetic, scheduler_aesthetic, scaler_aesthetic, start_epoch = load_checkpoint(model, optimizer_aesthetic, scheduler_aesthetic, scaler_aesthetic, args.checkpoint_path)
+            start_mode = "aesthetic"
+            logging.info(f"Loaded aesthetic checkpoint from {args.checkpoint_path}")
+        else:
+            raise ValueError("Invalid checkpoint path")
+
+
+    if start_mode == "pretext":
+        # training and validation loop
+        for epoch in range(start_epoch,PRETEXT_NUM_EPOCHS):
+            # Train in pretext phase
+            train_loss_pretext = train(
+                model,
+                train_loader_pretext,
+                criterion_pretext,
+                optimizer_pretext,
+                scaler_pretext,
+                device,
+                "pretext",
+                epoch,
+                PRETEXT_NUM_EPOCHS,
             )
+            val_loss_pretext = validate(
+                model, val_loader_pretext, criterion_pretext, device, "pretext"
+            )
+            old_lr = optimizer_pretext.param_groups[0]["lr"]
+            scheduler_pretext.step(val_loss_pretext)
+            new_lr = optimizer_pretext.param_groups[0]["lr"]
+            if old_lr != new_lr:
+                logging.info(
+                    f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Learning Rate Changed from {old_lr} to {new_lr}"
+                )
 
-        val_losses_pretext.append(val_loss_pretext)
+            val_losses_pretext.append(val_loss_pretext)
 
-        logging.info(
-            f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.8f}, Val Loss: {val_loss_pretext:.8f}"
-        )
-        # Save model at specified frequency
-        if (epoch + 1) % SAVE_FREQ == 0 or epoch == PRETEXT_NUM_EPOCHS - 1:
-            save_model(model, epoch, PATH_MODEL_RESULTS, "aestheticNet", tic)
-
-    for epoch in range(AES_NUM_EPOCHS):
+            logging.info(
+                f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.8f}, Val Loss: {val_loss_pretext:.8f}"
+            )
+            # Save model at specified frequency
+            if (epoch + 1) % SAVE_FREQ == 0 or epoch == PRETEXT_NUM_EPOCHS - 1:
+                logging.info("Saving checkpoint...")
+                save_training_checkpoint(
+                    model,
+                    epoch,
+                    PATH_MODEL_RESULTS,
+                    "aestheticNet-checkpoint-pretext",
+                    tic,
+                    optimizer_pretext,
+                    scheduler_pretext,
+                    scaler_pretext,
+                )
+    for epoch in range(start_epoch,AES_NUM_EPOCHS):
         # Train in aesthetic phase
         train_loss_aesthetic = train(
             model,
@@ -351,6 +412,7 @@ def main():
             device,
             "aesthetic",
             epoch,
+            AES_NUM_EPOCHS,
         )
         val_loss_aesthetic = validate(
             model, val_loader_aesthetic, criterion_aesthetic, device, "aesthetic"
@@ -369,7 +431,17 @@ def main():
         )
         # Save model at specified frequency
         if (epoch + 1) % SAVE_FREQ == 0 or epoch == AES_NUM_EPOCHS - 1:
-            save_model(model, epoch, PATH_MODEL_RESULTS, "aestheticNet", tic)
+            logging.info("Saving checkpoint...")
+            save_training_checkpoint(
+                model,
+                epoch,
+                PATH_MODEL_RESULTS,
+                "aestheticNet-checkpoint-aesthetic",
+                tic,
+                optimizer_aesthetic,
+                scheduler_aesthetic,
+                scaler_aesthetic,
+            )
 
     # Plotting the validation loss (2 plots)
     plt.figure(figsize=(10, 5))
@@ -378,7 +450,7 @@ def main():
     plt.ylabel("Loss")
     plt.title("Validation Losses Over Epochs")
     plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "val_losses.png"))
+    plt.savefig(os.path.join(PATH_PLOTS, "val_losses_pretext.png"))
 
     plt.figure(figsize=(10, 5))
     plt.plot(val_losses_aesthetic, label="Aesthetic Validation Loss")
@@ -386,8 +458,7 @@ def main():
     plt.ylabel("Loss")
     plt.title("Validation Losses Over Epochs")
     plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "val_losses.png"))
-
+    plt.savefig(os.path.join(PATH_PLOTS, "val_losses_aesthetic.png"))
 
 if __name__ == "__main__":
     main()
