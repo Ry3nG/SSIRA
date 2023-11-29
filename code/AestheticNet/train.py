@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import torch
 import torch.optim as optim
+from torch.optim import AdamW
 from torch.nn import DataParallel
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
@@ -109,10 +110,9 @@ def train(model, dataloader, criterion, optimizer, scaler, device, phase, epoch)
 
         total_loss += loss.item()
 
-        if batch_idx % 10 == 0:
-            # Log per-batch information
+        if batch_idx%NUM_WORKERS == 0:
             logging.info(
-                f"Epoch {epoch+1}, Phase {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.4f}"
+                f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Phase: {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.8f}"
             )
 
     return total_loss / len(dataloader)
@@ -157,6 +157,12 @@ def setup_logging(current_time):
     )
 
 
+def read_ava_ids(file_path):
+    with open(file_path, "r") as file:
+        test_ids = [line.strip() for line in file]
+    return test_ids
+
+
 def main():
     # save training start time
     tic = datetime.datetime.now()
@@ -182,7 +188,7 @@ def main():
     LR_MIN = args.lr_min
 
     # training start message
-    logging.info(f"Training started at {tic}")
+    logging.info(f"Training started at {tic} ------------------------------")
 
     # Logging the hyperparameters
     logging.info(f"Batch Size: {BATCH_SIZE}")
@@ -210,8 +216,8 @@ def main():
     scaler_aesthetic = GradScaler()
 
     # initialize the optimizer
-    optimizer_pretext = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    optimizer_aesthetic = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer_pretext = AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer_aesthetic = AdamW(model.parameters(), lr=LEARNING_RATE)
 
     # Initialize the learning rate scheduler
     scheduler_pretext = optim.lr_scheduler.ReduceLROnPlateau(
@@ -234,6 +240,9 @@ def main():
     logging.info("Model initialized.")
 
     # initialize and split the datasets for training and validation
+
+    ava_generic_train_id = read_ava_ids(PATH_AVA_GENERIC_TRAIN_IDS)
+
     full_train_dataset_pretext = TAD66KDataset(
         csv_file=PATH_LABEL_MERGE_TAD66K_TRAIN,
         root_dir=PATH_DATASET_TAD66K,
@@ -250,6 +259,8 @@ def main():
         txt_file=PATH_AVA_TXT,
         root_dir=PATH_AVA_IMAGE,
         custom_transform_options=custom_transform_options,
+        ids=ava_generic_train_id,
+        include_ids=True,
     )
     train_size_aesthetic = int(
         TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_aesthetic)
@@ -260,6 +271,11 @@ def main():
     )
 
     logging.info("Datasets initialized.")
+    # log dataset sizes
+    logging.info(f"Pretext Train Dataset Size: {len(train_dataset_pretext)}")
+    logging.info(f"Pretext Validation Dataset Size: {len(val_dataset_pretext)}")
+    logging.info(f"Aesthetic Train Dataset Size: {len(train_dataset_aesthetic)}")
+    logging.info(f"Aesthetic Validation Dataset Size: {len(val_dataset_aesthetic)}")
 
     # create dataloaders
     train_loader_pretext = DataLoader(
@@ -318,7 +334,7 @@ def main():
         val_losses_pretext.append(val_loss_pretext)
 
         logging.info(
-            f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.4f}, Val Loss: {val_loss_pretext:.4f}"
+            f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.8f}, Val Loss: {val_loss_pretext:.8f}"
         )
         # Save model at specified frequency
         if (epoch + 1) % SAVE_FREQ == 0 or epoch == PRETEXT_NUM_EPOCHS - 1:
@@ -349,22 +365,28 @@ def main():
         val_losses_aesthetic.append(val_loss_aesthetic)
 
         logging.info(
-            f"Epoch {epoch+1}/{AES_NUM_EPOCHS}, Aesthetic Phase, Train Loss: {train_loss_aesthetic:.4f}, Val Loss: {val_loss_aesthetic:.4f}"
+            f"Epoch {epoch+1}/{AES_NUM_EPOCHS}, Aesthetic Phase, Train Loss: {train_loss_aesthetic:.8f}, Val Loss: {val_loss_aesthetic:.8f}"
         )
         # Save model at specified frequency
         if (epoch + 1) % SAVE_FREQ == 0 or epoch == AES_NUM_EPOCHS - 1:
             save_model(model, epoch, PATH_MODEL_RESULTS, "aestheticNet", tic)
 
-    # Plotting the validation loss
+    # Plotting the validation loss (2 plots)
     plt.figure(figsize=(10, 5))
     plt.plot(val_losses_pretext, label="Pretext Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Validation Losses Over Epochs")
+    plt.legend()
+    plt.savefig(os.path.join(PATH_PLOTS, "val_losses.png"))
+
+    plt.figure(figsize=(10, 5))
     plt.plot(val_losses_aesthetic, label="Aesthetic Validation Loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.title("Validation Losses Over Epochs")
     plt.legend()
     plt.savefig(os.path.join(PATH_PLOTS, "val_losses.png"))
-    plt.show()
 
 
 if __name__ == "__main__":
