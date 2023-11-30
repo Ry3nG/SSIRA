@@ -10,7 +10,7 @@ from utils.transforms import CustomTransform
 
 default_transform = transforms.Compose(
     [
-        transforms.Resize((256, 256)),
+        transforms.Resize((224,224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
@@ -32,7 +32,7 @@ class TAD66KDataset(Dataset):
         transform_list = [CustomTransform(custom_transform_options)]
         if default_transform:
             transform_list += [
-                transforms.Resize((256, 256)),
+                transforms.Resize((224,224)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ]
@@ -74,7 +74,7 @@ class AVADataset(Dataset):
         transform_list = [CustomTransform(custom_transform_options)]
         if default_transform:
             transform_list += [
-                transforms.Resize((256, 256)),
+                transforms.Resize((224,224)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ]
@@ -157,7 +157,7 @@ class TAD66kDataset_Labeled(Dataset):
         transform_list = [CustomTransform(custom_transform_options)]
         if default_transform:
             transform_list += [
-                transforms.Resize((256, 256)),
+                transforms.Resize((224,224)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ]

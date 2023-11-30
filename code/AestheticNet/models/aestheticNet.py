@@ -4,7 +4,7 @@ from .encoder import Encoder
 from .decoder import Decoder
 
 class AestheticNet(nn.Module):
-    def __init__(self, encoded_image_size=2048, num_classes=1,input_image_size=256):
+    def __init__(self, encoded_image_size=2048, num_classes=1,input_image_size=224):
         super(AestheticNet, self).__init__()
         self.encoder = Encoder()
         self.decoder = Decoder(input_channels=encoded_image_size)
