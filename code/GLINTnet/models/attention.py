@@ -24,6 +24,8 @@ class ChannelAttentionModule(nn.Module):
         
         max_pooled = self.max_pool(x)
         max_pooled = self.fc(max_pooled.view(max_pooled.size(0), -1))
+        print("avg_pooled.shape from channel attention: ", avg_pooled.shape)
+        print("max_pooled.shape from channel attention: ", max_pooled.shape)
 
         return x * (avg_pooled.view(avg_pooled.size(0), -1, 1, 1) + max_pooled.view(max_pooled.size(0), -1, 1, 1))
     
@@ -41,4 +43,8 @@ class SpatialAttentionModule(nn.Module):
         max_pooled, _ = torch.max(x, dim=1, keepdim=True)
         pooled = torch.cat([avg_pooled, max_pooled], dim=1)
         attention = self.sigmoid(self.conv(pooled))
+
+        print("attention.shape from spatial attention: ", attention.shape)
+        print("x.shape from spatial attention: ", x.shape)
+        
         return x * attention

@@ -33,9 +33,14 @@ class DegradationLayers(nn.Module):
 
         degraded_images_tensor = torch.cat(degraded_images, dim=0)
         print(f"Degraded images tensor shape: {degraded_images_tensor.shape}")
+        print(f"Degraded images tensor min: {degraded_images_tensor.min()}")
+        print(f"Degraded images tensor max: {degraded_images_tensor.max()}")
+        print(f"Degraded images tensor mean: {degraded_images_tensor.mean()}")
+        print(f"Degraded images tensor std: {degraded_images_tensor.std()}")
+
         return degraded_images_tensor.to(x_batch.device)  # Move to the same device as input
 
-
+"""
 class ReconstructionHead(nn.Module):
     def __init__(self, input_features):
         super(ReconstructionHead, self).__init__()
@@ -64,4 +69,52 @@ class ReconstructionHead(nn.Module):
 
     def forward(self, x):
         x = self.upscaling_layers(x)
+
+        print(f"Reconstructed image shape: {x.shape}")
+        print(f"Reconstructed image min: {x.min()}")
+        print(f"Reconstructed image max: {x.max()}")
+        print(f"Reconstructed image mean: {x.mean()}")
+        print(f"Reconstructed image std: {x.std()}")
         return x
+"""
+class ReconstructionHead(nn.Module):
+    def __init__(self, input_features):
+        super(ReconstructionHead, self).__init__()
+        print(f"Input features: {input_features}")
+
+        self.conv1 = nn.ConvTranspose2d(input_features, 512, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.bn1 = nn.BatchNorm2d(512)
+
+        self.conv2 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.bn2 = nn.BatchNorm2d(256)
+
+        self.conv3 = nn.ConvTranspose2d(256, 3, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.tanh = nn.Tanh()
+
+    def forward(self, x):
+        x = self.conv1(x)
+        self.print_stats(x, "conv1")
+        x = self.relu1(x)
+        x = self.bn1(x)
+
+        x = self.conv2(x)
+        self.print_stats(x, "conv2")
+        x = self.relu2(x)
+        x = self.bn2(x)
+
+        x = self.conv3(x)
+        self.print_stats(x, "conv3")
+        x = self.tanh(x)
+
+        self.print_stats(x, "final_output")
+
+        return x
+
+    def print_stats(self, tensor, label):
+        print(f"{label} shape: {tensor.shape}")
+        print(f"{label} min: {tensor.min().item()}")
+        print(f"{label} max: {tensor.max().item()}")
+        print(f"{label} mean: {tensor.mean().item()}")
+        print(f"{label} std: {tensor.std().item()}")

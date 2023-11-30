@@ -1,20 +1,25 @@
-import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from tqdm import tqdm
+from torch.utils.data import DataLoader, random_split
+from torchvision.transforms import Compose
 import os
 import logging
-import datetime
+import argparse
+from datetime import datetime
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.cuda.amp import GradScaler, autocast
 
+# Import your model and other components
 from models.GLINTnet import GLINTnet, GLINTnetSelfSupervised
-from data.dataset import AVADataset,TAD66KDataset
+from data.dataset import TAD66KDataset, AVADataset
 from utils.constants import *
 
+# Performance boosters
+torch.backends.cudnn.benchmark = True
 
 def setup_logging(current_time):
-    log_file = os.path.join(PATH_LOGS, f"GLINTnet_train_{current_time}.log")
+    log_file = os.path.join(PATH_LOGS, f"train_{current_time}.log")
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -25,8 +30,15 @@ def setup_logging(current_time):
     )
 
 
+def read_ava_ids(file_path):
+    with open(file_path, "r") as file:
+        test_ids = [line.strip() for line in file]
+    return test_ids
+
+
+
 def parse_args():
-    parser = argparse.ArgumentParser(description="GLINTnet training script")
+    parser = argparse.ArgumentParser(description="Train AestheticNet")
     parser.add_argument(
         "--batch_size", type=int, default=BATCH_SIZE, help="Batch size for training"
     )
@@ -52,252 +64,150 @@ def parse_args():
         "--num_workers",
         type=int,
         default=NUM_WORKERS,
-        help="Number of workers for DataLoader",
+        help="Number of workers for training",
     )
     parser.add_argument(
         "--train_val_split_ratio",
         type=float,
         default=TRAIN_VAL_SPLIT_RATIO,
-        help="Train/Validation split ratio",
+        help="Ratio of training to validation data",
     )
     parser.add_argument(
-        "--save_freq",
+        "--save_freq", type=int, default=SAVE_FREQ, help="Frequency of saving model"
+    )
+    parser.add_argument(
+        "--lr_patience",
         type=int,
-        default=SAVE_FREQ,
-        help="Frequency for saving the model",
+        default=LR_PATIENCE,
+        help="Patience for learning rate scheduler",
     )
+    parser.add_argument(
+        "--lr_factor",
+        type=float,
+        default=LR_FACTOR,
+        help="Factor for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--lr_mode", type=str, default=LR_MODE, help="Mode for learning rate scheduler"
+    )
+    parser.add_argument(
+        "--lr_verbose",
+        type=bool,
+        default=LR_VERBOSE,
+        help="Verbosity for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--lr_min",
+        type=float,
+        default=LR_MIN,
+        help="Minimum learning rate for learning rate scheduler",
+    )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default=None,
+        help="Path to a saved checkpoint (default: None)",
+    )
+
     return parser.parse_args()
-
-
-def train_self_supervised(
-    model, data_loader, optimizer, criterion, epochs, device, train_start_time
-):
-    model.train()
-
-    for epoch in range(epochs):
-        for degraded_images, original_images in data_loader:
-            print(f"Degraded images shape: {degraded_images.shape}")
-            print(f"Original images shape: {original_images.shape}")
-            degraded_images = degraded_images.to(device)
-            original_images = original_images.to(device)
-
-            optimizer.zero_grad()
-            reconstructed_images, _ = model(degraded_images)
-            loss = criterion(reconstructed_images, original_images)
-            loss.backward()
-            optimizer.step()
-
-            logging.info(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.8f}")
-        val_loss = validate(model, data_loader, criterion, device)
-        logging.info(f"Validation Loss Epoch [{epoch+1}/{epochs}]: {val_loss:.8f}")
-
-        if (epoch + 1) % SAVE_FREQ == 0:
-            save_model(
-                model,
-                epoch,
-                PATH_MODEL_RESULTS,
-                "GLINTnet" + "_Phase_Pretext" + str(epoch),
-                train_start_time,
-            )
-
-
-def train_supervised(
-    model, data_loader, optimizer, criterion, epochs, device, train_start_time
-):
-    model.train()
-
-    for epoch in range(epochs):
-        for images, scores in data_loader:
-            images = images.to(device)
-            scores = scores.to(device)
-
-            optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, scores)
-            loss.backward()
-            optimizer.step()
-
-            logging.info(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.8f}")
-        val_loss = validate(model, data_loader, criterion, device)
-        logging.info(f"Validation Loss Epoch [{epoch+1}/{epochs}]: {val_loss:.8f}")
-
-        if (epoch + 1) % SAVE_FREQ == 0:
-            save_model(
-                model,
-                epoch,
-                PATH_MODEL_RESULTS,
-                "GLINTnet" + "_Phase_AES" + str(epoch),
-                train_start_time,
-            )
-
-
-def validate(model, data_loader, criterion, device):
+def validate(model, dataloader, criterion, device):
     model.eval()
-    total_loss = 0.0
+    running_loss = 0.0
     with torch.no_grad():
-        for data in data_loader:
-            inputs, targets = data[0].to(device), data[1].to(device)
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            total_loss += loss.item()
-    avg_loss = total_loss / len(data_loader)
-    return avg_loss
+            loss = criterion(outputs, labels)
+            running_loss += loss.item()
+    return running_loss / len(dataloader)
 
+# Parse arguments
+args = parse_args()
+setup_logging(datetime.now().strftime("%Y%m%d_%H%M%S"))
 
-def read_ava_ids(file_path):
-    with open(file_path, "r") as file:
-        test_ids = [line.strip() for line in file]
-    return test_ids
+# Setup device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Initialize datasets and dataloaders
+ava_generic_train_id = read_ava_ids(PATH_AVA_GENERIC_TRAIN_IDS)
+tad66k_dataset = TAD66KDataset(PATH_LABEL_MERGE_TAD66K_TRAIN, PATH_DATASET_TAD66K, custom_transform_options=[23])
+ava_dataset = AVADataset(PATH_AVA_TXT, PATH_AVA_IMAGE, custom_transform_options=[23], ids=ava_generic_train_id)
 
-def save_training_checkpoint(
-    model, epoch, save_dir, filename, current_time, optimizer, scheduler, scaler
-):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}_{current_time}.pth")
-    torch.save(
-        {
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "scheduler_state_dict": scheduler.state_dict(),
-            "scaler_state_dict": scaler.state_dict(),
-        },
-        save_path,
-    )
+# Train/Val Split for AVA dataset
+train_size = int(args.train_val_split_ratio * len(ava_dataset))
+val_size = len(ava_dataset) - train_size
+ava_train_dataset, ava_val_dataset = random_split(ava_dataset, [train_size, val_size])
 
+tad66k_loader = DataLoader(tad66k_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+ava_train_loader = DataLoader(ava_train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+ava_val_loader = DataLoader(ava_val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-def save_model(model, epoch, save_dir, filename, current_time):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    save_path = os.path.join(save_dir, f"{filename}_epoch_{epoch}_{current_time}.pth")
-    torch.save(model.state_dict(), save_path)
-    logging.info(f"Checkpoint saved: {save_path}")
+# Phase 1: Self-Supervised Learning with TAD66K Dataset
+model_self_supervised = GLINTnetSelfSupervised(GLINTnet(num_classes=10), input_features=2048, manipulation_options=list(range(24))).to(device)
+optimizer_self_supervised = optim.Adam(model_self_supervised.parameters(), lr=args.learning_rate)
+criterion_self_supervised = nn.MSELoss() 
+scaler_self_supervised = GradScaler()  # For mixed precision training
 
+for epoch in range(args.pretext_num_epochs):
+    model_self_supervised.train()
+    running_loss = 0.0
+    for i,(inputs, _)in enumerate(tad66k_loader):
+        inputs = inputs.to(device)
 
-def main():
-    tic = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    setup_logging(tic)
-    logging.info(f"GLINTnet training script started at {tic}")
-    args = parse_args()
+        optimizer_self_supervised.zero_grad()
 
-    # Now use args to get the command line arguments
-    batch_size = args.batch_size
-    pretext_num_epochs = args.pretext_num_epochs
-    aes_num_epochs = args.aes_num_epochs
-    learning_rate = args.learning_rate
-    num_workers = args.num_workers
-    train_val_split_ratio = args.train_val_split_ratio
-    save_freq = args.save_freq
+        with autocast():  # Enable mixed precision
+            reconstructed, _ = model_self_supervised(inputs)
+            loss = criterion_self_supervised(reconstructed, inputs)
 
-    # Check if GPU is available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f"Device: {device}")
+        scaler_self_supervised.scale(loss).backward()
+        # Gradient clipping (example: clip to max norm of 1)
+        torch.nn.utils.clip_grad_norm_(model_self_supervised.parameters(), 1)
 
-    # Load the dataset
-    full_self_supervised_dataset = TAD66KDataset(
-        csv_file=PATH_LABEL_MERGE_TAD66K_TRAIN,
-        root_dir=PATH_DATASET_TAD66K,
-        custom_transform_options=[23],
-        default_transform=True,
-    )
-    ava_generic_train_id = read_ava_ids(PATH_AVA_GENERIC_TRAIN_IDS)
-    full_supervised_dataset = AVADataset(
-        txt_file=PATH_AVA_TXT,
-        root_dir=PATH_AVA_IMAGE,
-        custom_transform_options=[23],
-        default_transform=True,
-        ids=ava_generic_train_id,
-        include_ids=True,
-    )
+        scaler_self_supervised.step(optimizer_self_supervised)
+        scaler_self_supervised.update()
 
-    # Split the dataset into train and validation
-    self_supervised_train_size = int(
-        train_val_split_ratio * len(full_self_supervised_dataset)
-    )
-    self_supervised_val_size = (
-        len(full_self_supervised_dataset) - self_supervised_train_size
-    )
-    supervised_train_size = int(train_val_split_ratio * len(full_supervised_dataset))
-    supervised_val_size = len(full_supervised_dataset) - supervised_train_size
+        running_loss += loss.item()
+        logging.info(f"Epoch {epoch+1}, Batch {i+1}, Loss: {loss.item():.8f}" )  
 
-    (
-        self_supervised_train_dataset,
-        self_supervised_val_dataset,
-    ) = torch.utils.data.random_split(
-        full_self_supervised_dataset,
-        [self_supervised_train_size, self_supervised_val_size],
-    )
-    supervised_train_dataset, supervised_val_dataset = torch.utils.data.random_split(
-        full_supervised_dataset, [supervised_train_size, supervised_val_size]
-    )
+    val_loss = validate(model_self_supervised, ava_val_loader, criterion_self_supervised, device)
+    logging.info(f"Epoch {epoch+1}, Training Loss: {running_loss / len(tad66k_loader)}, Validation Loss: {val_loss}")
 
-    # Create the dataloaders
-    self_supervised_train_loader = DataLoader(
-        self_supervised_train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-    )
-    self_supervised_val_loader = DataLoader(
-        self_supervised_val_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-    )
+    if epoch % args.save_freq == args.save_freq - 1:
+        torch.save(model_self_supervised.state_dict(), os.path.join(args.path_model_results, f'self_supervised_epoch_{epoch}.pth'))
 
-    supervised_train_loader = DataLoader(
-        supervised_train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-    )
-    supervised_val_loader = DataLoader(
-        supervised_val_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-    )
+logging.info("Finished Self-Supervised Training")
 
-    # Initialize the model
-    base_model = GLINTnet(
-        num_classes=1, is_classification=False
-    )  # example for a simple regression model
-    model = GLINTnetSelfSupervised(
-        base_model, input_features=2048, manipulation_options=list(range(24))
-    ).to(device)
+# Phase 2: Supervised Learning with AVA Dataset
+model_supervised = GLINTnet(num_classes=10).to(device)
+optimizer_supervised = optim.Adam(model_supervised.parameters(), lr=args.learning_rate)
+criterion_supervised = nn.CrossEntropyLoss()
+scheduler_supervised = ReduceLROnPlateau(optimizer_supervised, mode=args.lr_mode, factor=args.lr_factor, patience=args.lr_patience, verbose=args.lr_verbose, min_lr=args.lr_min)
+scaler_supervised = GradScaler()  # For mixed precision training
 
-    # Define the loss function and optimizer
-    criterion_self_supervised = nn.MSELoss()
-    criterion_supervised = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+for epoch in range(args.aes_num_epochs):
+    model_supervised.train()
+    running_loss = 0.0
+    for i,(inputs, labels) in enumerate(ava_train_loader):
+        inputs, labels = inputs.to(device), labels.to(device)
 
-    # self-supervised training
-    logging.info("Starting self-supervised training...")
-    train_self_supervised(
-        model,
-        self_supervised_train_loader,
-        optimizer,
-        criterion_self_supervised,
-        pretext_num_epochs,
-        device,
-        tic,
-    )
+        optimizer_supervised.zero_grad()
 
-    # supervised training
-    model = base_model.to(device)
-    logging.info("Starting supervised training...")
-    train_supervised(
-        model,
-        supervised_train_loader,
-        optimizer,
-        criterion_supervised,
-        aes_num_epochs,
-        device,
-        tic,
-    )
+        with autocast():  # Enable mixed precision
+            outputs = model_supervised(inputs)
+            loss = criterion_supervised(outputs, labels)
 
+        scaler_supervised.scale(loss).backward()
+        scaler_supervised.step(optimizer_supervised)
+        scaler_supervised.update()
 
-if __name__ == "__main__":
-    main()
+        running_loss += loss.item()
+        logging.info(f"Epoch {epoch+1}, Batch {i+1}, Loss: {loss.item():.8f}" )
+    val_loss = validate(model_supervised, ava_val_loader, criterion_supervised, device)
+    scheduler_supervised.step(val_loss)
+    logging.info(f"Epoch {epoch+1}, Training Loss: {running_loss / len(ava_train_loader)}, Validation Loss: {val_loss}")
+
+    if epoch % args.save_freq == args.save_freq - 1:
+        torch.save(model_supervised.state_dict(), os.path.join(args.path_model_results, f'supervised_epoch_{epoch}.pth'))
+
+logging.info("Finished Supervised Training")

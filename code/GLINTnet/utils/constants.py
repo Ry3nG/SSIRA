@@ -15,13 +15,13 @@ PATH_AVA_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_
 PATH_AVA_GENERIC_TRAIN_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_ls_train_clean.jpgl"
 PATH_AVA_GENERIC_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test_clean.jpgl"
 # training constants
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 
-PRETEXT_NUM_EPOCHS = 100
-AES_NUM_EPOCHS = 100
+PRETEXT_NUM_EPOCHS = 1
+AES_NUM_EPOCHS = 1
 
-LEARNING_RATE = 1e-3
-NUM_WORKERS = 0
+LEARNING_RATE = 1e-7
+NUM_WORKERS = 32
 TRAIN_VAL_SPLIT_RATIO = 0.9
 
 SAVE_FREQ = 10

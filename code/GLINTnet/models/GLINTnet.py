@@ -45,11 +45,14 @@ class GLINTnet(nn.Module):
         print("Global features shape in GLINet forward pass:", global_features.shape)
         print("Local features shape in GLINet forward pass:", local_features.shape)
 
+        """
         # Apply attention modules
         global_features = self.channel_attention(global_features)
         global_features = self.spatial_attention(global_features)
         local_features = self.channel_attention(local_features)
         local_features = self.spatial_attention(local_features)
+
+        """
 
         integrated_features = self.adaptive_feature_integration(
             global_features, local_features
@@ -65,6 +68,7 @@ class GLINTnet(nn.Module):
         integrated_features_flattened = integrated_features.view(
             integrated_features.size(0), -1
         )
+        
         # Adjust the number of input features in the first Linear layer if necessary
         print(
             "Flattened features shape in GLINet forward pass:",
@@ -85,17 +89,26 @@ class GLINTnetSelfSupervised(nn.Module):
         self.reconstruction_head = ReconstructionHead(input_features)
 
     def forward(self, x):
-        print(f"Input shape in GLINetSS forward pass: {x.shape}")
         degraded_x = self.degradation_layer(x)
-        print(f"Degraded shape in GLINetSS forward pass: {degraded_x.shape}")
+        print(f"Degraded x shape in GLINTnetSS forward pass: {degraded_x.shape}")
 
-        features = self.base_model(degraded_x) # base model is GLINTnet
-        print(f"Features shape in GLINetSS forward pass: {features.shape}")
+        # Extract features directly before the classification/regression head
+        global_features = self.base_model.global_feature_extractor(degraded_x)
+        print(f"Global features shape in GLINTnetSS forward pass: {global_features.shape}")
+        local_features = self.base_model.local_feature_extractor(degraded_x)
+        print(f"Local features shape in GLINTnetSS forward pass: {local_features.shape}")
+        integrated_features = self.base_model.adaptive_feature_integration(global_features, local_features)
+        print(f"Integrated features shape in GLINTnetSS forward pass: {integrated_features.shape}")
 
-        reconstructed_x = self.reconstruction_head(features)
-        print(f"Reconstructed shape in GLINetSS forward pass: {reconstructed_x.shape}")
-
-        # Ensure that reconstructed_x is on the same device as input
-        reconstructed_x = reconstructed_x.to(x.device)
-
+        
+        """
+        # Optionally, apply attention mechanisms if needed
+        integrated_features = self.base_model.channel_attention(integrated_features)
+        print(f"Integrated features shape after channel attention in GLINTnetSS forward pass: {integrated_features.shape}")
+        integrated_features = self.base_model.spatial_attention(integrated_features)
+        print(f"Integrated features shape after spatial attention in GLINTnetSS forward pass: {integrated_features.shape}")
+        """
+        
+        reconstructed_x = self.reconstruction_head(integrated_features)
+        print(f"Reconstructed x shape in GLINTnetSS forward pass: {reconstructed_x.shape}")
         return reconstructed_x, degraded_x
