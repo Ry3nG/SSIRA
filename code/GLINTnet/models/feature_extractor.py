@@ -17,7 +17,13 @@ class GlobalFeatureExtractor(nn.Module):
 
     def forward(self, x):
         x = self.resnet(x)
+        """
         print(f"Global Feature Shape: {x.shape}")
+        print(f"Global Feature Min: {x.min()}")
+        print(f"Global Feature Max: {x.max()}")
+        print(f"Global Feature Mean: {x.mean()}")
+        print(f"Global Feature Std: {x.std()}")
+        """
         return x
     
 # Local Feature Extractor
@@ -38,5 +44,11 @@ class LocalFeatureExtractor(nn.Module):
     def forward(self, x):
         x = self.vgg(x)
         x = self.extra_layers(x)
+        """
         print(f"Local Feature Shape: {x.shape}")
+        print(f"Local Feature Min: {x.min()}")
+        print(f"Local Feature Max: {x.max()}")
+        print(f"Local Feature Mean: {x.mean()}")
+        print(f"Local Feature Std: {x.std()}")
+        """
         return x

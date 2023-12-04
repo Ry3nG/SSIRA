@@ -32,51 +32,16 @@ class DegradationLayers(nn.Module):
             degraded_images.append(degraded_img_tensor.unsqueeze(0))
 
         degraded_images_tensor = torch.cat(degraded_images, dim=0)
+        """
         print(f"Degraded images tensor shape: {degraded_images_tensor.shape}")
         print(f"Degraded images tensor min: {degraded_images_tensor.min()}")
         print(f"Degraded images tensor max: {degraded_images_tensor.max()}")
         print(f"Degraded images tensor mean: {degraded_images_tensor.mean()}")
         print(f"Degraded images tensor std: {degraded_images_tensor.std()}")
+        """
 
         return degraded_images_tensor.to(x_batch.device)  # Move to the same device as input
 
-"""
-class ReconstructionHead(nn.Module):
-    def __init__(self, input_features):
-        super(ReconstructionHead, self).__init__()
-
-        # first convTranspose2d layer should accept input_features input channels
-        self.upscaling_layers = nn.Sequential(
-            nn.ConvTranspose2d(input_features, 1024, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(1024),
-
-            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(512),
-
-            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(256),
-
-            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(128),
-
-            nn.ConvTranspose2d(128, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.Tanh() 
-        )
-
-    def forward(self, x):
-        x = self.upscaling_layers(x)
-
-        print(f"Reconstructed image shape: {x.shape}")
-        print(f"Reconstructed image min: {x.min()}")
-        print(f"Reconstructed image max: {x.max()}")
-        print(f"Reconstructed image mean: {x.mean()}")
-        print(f"Reconstructed image std: {x.std()}")
-        return x
-"""
 class ReconstructionHead(nn.Module):
     def __init__(self, input_features):
         super(ReconstructionHead, self).__init__()
@@ -90,26 +55,45 @@ class ReconstructionHead(nn.Module):
         self.relu2 = nn.ReLU(inplace=True)
         self.bn2 = nn.BatchNorm2d(256)
 
-        self.conv3 = nn.ConvTranspose2d(256, 3, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.tanh = nn.Tanh()
+        self.conv3 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.bn3 = nn.BatchNorm2d(128)
+
+        self.conv4 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.relu4 = nn.ReLU(inplace=True)
+        self.bn4 = nn.BatchNorm2d(64)
+
+        self.final_conv = nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.final_act = nn.Sigmoid()
+
+
+        # Apply Kaiming Initialization
+        nn.init.kaiming_normal_(self.conv1.weight, nonlinearity='relu')
+        nn.init.kaiming_normal_(self.conv2.weight, nonlinearity='relu')
+        nn.init.kaiming_normal_(self.conv3.weight, nonlinearity='relu')
+        nn.init.kaiming_normal_(self.conv4.weight, nonlinearity='relu')
+        nn.init.kaiming_normal_(self.final_conv.weight, nonlinearity='tanh')  # or 'sigmoid' if using Sigmoid
 
     def forward(self, x):
         x = self.conv1(x)
-        self.print_stats(x, "conv1")
+        #self.print_stats(x, "conv1")
         x = self.relu1(x)
         x = self.bn1(x)
-
         x = self.conv2(x)
-        self.print_stats(x, "conv2")
+        #self.print_stats(x, "conv2")
         x = self.relu2(x)
         x = self.bn2(x)
-
         x = self.conv3(x)
-        self.print_stats(x, "conv3")
-        x = self.tanh(x)
-
-        self.print_stats(x, "final_output")
-
+        #self.print_stats(x, "conv3")
+        x = self.relu3(x)
+        x = self.conv4(x)
+        #self.print_stats(x, "conv4")
+        x = self.relu4(x)
+        x = self.bn4(x)
+        x = self.final_conv(x)
+        #self.print_stats(x, "final_conv")
+        x = self.final_act(x)
+        #self.print_stats(x, "final_output")
         return x
 
     def print_stats(self, tensor, label):

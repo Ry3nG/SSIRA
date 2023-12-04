@@ -87,12 +87,21 @@ def rotate(image, deg):
     height, width = image.shape[:2]
     center = (width / 2, height / 2)
     angle = deg
+
+    # random the sign of the angle
+    if random.random() > 0.5:
+        angle = -angle
     scale = 0.8
 
     M = cv.getRotationMatrix2D(center, angle, scale)
     image_rotation = cv.warpAffine(src=image, M=M, dsize=(width, height), borderValue=(255, 255, 255))
 
     return image_rotation
+
+def horizontal_flip(image):
+    image_flip = cv.flip(image, 1)
+
+    return image_flip
 
 # Custom transform class
 class CustomTransform:
@@ -167,7 +176,7 @@ def image_manipulation(image, opt):
     elif opt == 21:
         return rotate(image, 15)
     elif opt == 22:
-        return rotate(image, -15)
+        return horizontal_flip(image)
     else:  # opt == 23 or any other case
         return image
 
