@@ -1,0 +1,140 @@
+2023-11-30 10:55:32,722 INFO Parsing arguments...
+2023-11-30 10:55:32,724 INFO Training started at 2023-11-30_10-55-32 ------------------------------
+2023-11-30 10:55:32,724 INFO Batch Size: 256
+2023-11-30 10:55:32,724 INFO Number of Epochs for Pretext Phase: 50
+2023-11-30 10:55:32,724 INFO Number of Epochs for Aesthetic Phase: 50
+2023-11-30 10:55:32,724 INFO Learning Rate: 0.001
+2023-11-30 10:55:33,778 INFO Using device: cuda:0
+2023-11-30 10:55:33,801 INFO NVIDIA A100-PCIE-40GB
+2023-11-30 10:55:36,881 INFO Model initialized.
+2023-11-30 10:55:37,277 INFO Missing IDs: {11776, 954496, 11906, 954750, 954752, 714501, 326915, 327942, 953738, 714380, 328716, 328847, 328465, 11795, 954004, 477462, 328601, 329244, 327070, 950559, 327584, 954403, 329124, 11814, 954664, 329257, 11818, 328875, 11948, 328877, 104237, 714034, 11699, 954804, 11957, 329270, 953143, 104884, 954809, 11706, 952509, 954557, 328383, 954689, 327366, 11720, 714313, 327881, 329163, 327632, 328020, 11733, 328790, 329173, 329178, 11996, 953692, 11871, 11872, 328674, 328932, 12005, 11750, 327272, 328809, 327530, 954476, 329324, 470892, 714609, 11762, 326903, 11769, 954236, 12029, 11774}
+2023-11-30 10:55:37,277 INFO Number of missing IDs: 76
+2023-11-30 10:55:37,277 INFO Filtered dataset size: 19922
+2023-11-30 10:55:37,278 INFO Datasets initialized.
+2023-11-30 10:55:37,278 INFO Pretext Train Dataset Size: 47023
+2023-11-30 10:55:37,278 INFO Pretext Validation Dataset Size: 5225
+2023-11-30 10:55:37,278 INFO Aesthetic Train Dataset Size: 17929
+2023-11-30 10:55:37,278 INFO Aesthetic Validation Dataset Size: 1993
+
+2023-11-30 11:39:52,632 INFO Epoch 1/50, Pretext Phase, Train Loss: 0.65411393, Val Loss: 0.50517885
+
+2023-11-30 12:21:19,077 INFO Epoch 2/50, Pretext Phase, Train Loss: 0.51065130, Val Loss: 0.48586887
+
+2023-11-30 13:02:11,360 INFO Epoch 3/50, Pretext Phase, Train Loss: 0.48345171, Val Loss: 0.46384601
+
+2023-11-30 13:50:39,820 INFO Epoch 4/50, Pretext Phase, Train Loss: 0.47200367, Val Loss: 0.44897006
+
+2023-11-30 14:32:46,135 INFO Epoch 5/50, Pretext Phase, Train Loss: 0.46031771, Val Loss: 0.44790554
+2023-11-30 15:12:23,520 INFO Epoch 6/50, Pretext Phase, Train Loss: 0.45387674, Val Loss: 0.45226413
+2023-11-30 15:39:10,131 INFO Epoch 7/50, Pretext Phase, Train Loss: 0.45209438, Val Loss: 0.44722801
+2023-11-30 16:16:19,721 INFO Epoch 8/50, Pretext Phase, Train Loss: 0.44720528, Val Loss: 0.48280685
+2023-11-30 17:10:58,405 INFO Epoch 9/50, Pretext Phase, Train Loss: 0.44483445, Val Loss: 0.43413316
+2023-11-30 18:02:59,336 INFO Epoch 10/50, Pretext Phase, Train Loss: 0.44293491, Val Loss: 0.43898343
+2023-11-30 18:02:59,337 INFO Saving checkpoint...
+2023-11-30 18:54:30,154 INFO Epoch 11/50, Pretext Phase, Train Loss: 0.44222706, Val Loss: 0.43679661
+2023-11-30 19:39:57,939 INFO Epoch 12/50, Pretext Phase, Train Loss: 0.44029917, Val Loss: 0.45410960
+2023-11-30 20:08:57,327 INFO Epoch 13/50, Pretext Phase, Train Loss: 0.43761948, Val Loss: 0.43000679
+2023-11-30 20:34:43,309 INFO Epoch 14/50, Pretext Phase, Train Loss: 0.43677669, Val Loss: 0.42898462
+2023-11-30 21:01:54,054 INFO Epoch 15/50, Pretext Phase, Train Loss: 0.43223878, Val Loss: 0.42731785
+2023-11-30 21:35:04,012 INFO Epoch 16/50, Pretext Phase, Train Loss: 0.42962510, Val Loss: 0.42178246
+2023-11-30 22:08:57,808 INFO Epoch 17/50, Pretext Phase, Train Loss: 0.43099768, Val Loss: 0.41928552
+2023-11-30 22:42:46,256 INFO Epoch 18/50, Pretext Phase, Train Loss: 0.45106259, Val Loss: 0.42983119
+2023-11-30 23:15:14,641 INFO Epoch 19/50, Pretext Phase, Train Loss: 0.44419944, Val Loss: 0.42949267
+2023-11-30 23:47:50,683 INFO Epoch 20/50, Pretext Phase, Train Loss: 0.43535271, Val Loss: 0.42532581
+2023-11-30 23:47:50,683 INFO Saving checkpoint...
+2023-12-01 00:20:26,505 INFO Epoch 21/50, Pretext Phase, Train Loss: 0.43166882, Val Loss: 0.41996653
+2023-12-01 00:52:09,141 INFO Epoch 22/50, Pretext Phase, Train Loss: 0.43637716, Val Loss: 0.42034219
+2023-12-01 01:23:11,544 INFO Epoch 23/50, Pretext Phase, Learning Rate Changed from 0.001 to 0.0001
+2023-12-01 01:23:11,544 INFO Epoch 23/50, Pretext Phase, Train Loss: 0.43060386, Val Loss: 0.43055499
+2023-12-01 01:55:47,170 INFO Epoch 24/50, Pretext Phase, Train Loss: 0.43077768, Val Loss: 0.41915379
+2023-12-01 02:30:12,306 INFO Epoch 25/50, Pretext Phase, Train Loss: 0.42586628, Val Loss: 0.41572068
+2023-12-01 03:04:50,877 INFO Epoch 26/50, Pretext Phase, Train Loss: 0.42769563, Val Loss: 0.42091197
+2023-12-01 03:30:34,100 INFO Epoch 27/50, Pretext Phase, Train Loss: 0.42684463, Val Loss: 0.41896782
+2023-12-01 03:56:43,934 INFO Epoch 28/50, Pretext Phase, Train Loss: 0.42641416, Val Loss: 0.41704098
+2023-12-01 04:22:56,806 INFO Epoch 29/50, Pretext Phase, Train Loss: 0.42694811, Val Loss: 0.42223895
+2023-12-01 04:48:40,797 INFO Epoch 30/50, Pretext Phase, Train Loss: 0.42753897, Val Loss: 0.41348707
+2023-12-01 04:48:40,798 INFO Saving checkpoint...
+2023-12-01 05:14:49,499 INFO Epoch 31/50, Pretext Phase, Train Loss: 0.42566977, Val Loss: 0.41875498
+2023-12-01 05:41:06,179 INFO Epoch 32/50, Pretext Phase, Train Loss: 0.42454802, Val Loss: 0.42173511
+2023-12-01 06:07:17,010 INFO Epoch 33/50, Pretext Phase, Train Loss: 0.42711891, Val Loss: 0.41910755
+2023-12-01 06:33:22,269 INFO Epoch 34/50, Pretext Phase, Train Loss: 0.42514076, Val Loss: 0.41467768
+2023-12-01 06:59:44,918 INFO Epoch 35/50, Pretext Phase, Train Loss: 0.42693269, Val Loss: 0.41916306
+2023-12-01 07:25:36,133 INFO Epoch 36/50, Pretext Phase, Learning Rate Changed from 0.0001 to 1e-05
+2023-12-01 07:25:36,133 INFO Epoch 36/50, Pretext Phase, Train Loss: 0.42673664, Val Loss: 0.42416941
+2023-12-01 07:51:48,017 INFO Epoch 37/50, Pretext Phase, Train Loss: 0.42623322, Val Loss: 0.41508667
+2023-12-01 08:23:49,508 INFO Epoch 38/50, Pretext Phase, Train Loss: 0.42590597, Val Loss: 0.40980623
+2023-12-01 09:02:49,819 INFO Epoch 39/50, Pretext Phase, Train Loss: 0.42643883, Val Loss: 0.41506699
+2023-12-01 09:41:19,940 INFO Epoch 40/50, Pretext Phase, Train Loss: 0.42325709, Val Loss: 0.41161843
+2023-12-01 09:41:19,940 INFO Saving checkpoint...
+2023-12-01 10:14:18,182 INFO Epoch 41/50, Pretext Phase, Train Loss: 0.42157979, Val Loss: 0.41800173
+2023-12-01 10:46:39,666 INFO Epoch 42/50, Pretext Phase, Train Loss: 0.42461867, Val Loss: 0.41880903
+2023-12-01 11:19:47,250 INFO Epoch 43/50, Pretext Phase, Train Loss: 0.42511912, Val Loss: 0.41736641
+2023-12-01 11:51:28,549 INFO Epoch 44/50, Pretext Phase, Learning Rate Changed from 1e-05 to 1.0000000000000002e-06
+2023-12-01 11:51:28,550 INFO Epoch 44/50, Pretext Phase, Train Loss: 0.42492361, Val Loss: 0.41124335
+2023-12-01 12:23:03,249 INFO Epoch 45/50, Pretext Phase, Train Loss: 0.42591580, Val Loss: 0.40848901
+2023-12-01 12:55:27,400 INFO Epoch 46/50, Pretext Phase, Train Loss: 0.42587458, Val Loss: 0.42236227
+2023-12-01 13:29:53,301 INFO Epoch 47/50, Pretext Phase, Train Loss: 0.42494677, Val Loss: 0.41643663
+2023-12-01 14:05:36,072 INFO Epoch 48/50, Pretext Phase, Train Loss: 0.42559112, Val Loss: 0.42160148
+2023-12-01 14:40:29,361 INFO Epoch 49/50, Pretext Phase, Train Loss: 0.42362096, Val Loss: 0.41799702
+2023-12-01 15:16:00,309 INFO Epoch 50/50, Pretext Phase, Train Loss: 0.42368430, Val Loss: 0.41869302
+2023-12-01 15:16:00,309 INFO Saving checkpoint...
+2023-12-01 15:27:37,459 INFO Epoch 1/50, Aesthetic Phase, Train Loss: 4.45761991, Val Loss: 4.47228130
+2023-12-01 15:38:09,412 INFO Epoch 2/50, Aesthetic Phase, Train Loss: 4.45483492, Val Loss: 4.47228130
+2023-12-01 15:48:42,119 INFO Epoch 3/50, Aesthetic Phase, Train Loss: 4.44908714, Val Loss: 4.47228130
+2023-12-01 15:59:05,906 INFO Epoch 4/50, Aesthetic Phase, Train Loss: 4.44711059, Val Loss: 4.47228130
+2023-12-01 16:09:44,085 INFO Epoch 5/50, Aesthetic Phase, Train Loss: 4.45355540, Val Loss: 4.47228130
+2023-12-01 16:19:32,602 INFO Epoch 6/50, Aesthetic Phase, Train Loss: 4.45047842, Val Loss: 4.47228130
+2023-12-01 16:29:03,986 INFO Epoch 7/50, Aesthetic Phase, Learning Rate Changed from 0.001 to 0.0001
+2023-12-01 16:29:03,987 INFO Epoch 7/50, Aesthetic Phase, Train Loss: 4.45213760, Val Loss: 4.47228130
+2023-12-01 16:39:04,482 INFO Epoch 8/50, Aesthetic Phase, Train Loss: 4.44963792, Val Loss: 4.47228130
+2023-12-01 16:50:41,021 INFO Epoch 9/50, Aesthetic Phase, Train Loss: 4.44652484, Val Loss: 4.47228130
+2023-12-01 17:01:53,556 INFO Epoch 10/50, Aesthetic Phase, Train Loss: 4.44866197, Val Loss: 4.47228130
+2023-12-01 17:01:53,556 INFO Saving checkpoint...
+2023-12-01 17:13:17,457 INFO Epoch 11/50, Aesthetic Phase, Train Loss: 4.44857285, Val Loss: 4.47228130
+2023-12-01 17:25:04,398 INFO Epoch 12/50, Aesthetic Phase, Train Loss: 4.45436759, Val Loss: 4.47228130
+2023-12-01 17:36:41,237 INFO Epoch 13/50, Aesthetic Phase, Learning Rate Changed from 0.0001 to 1e-05
+2023-12-01 17:36:41,237 INFO Epoch 13/50, Aesthetic Phase, Train Loss: 4.45194736, Val Loss: 4.47228130
+2023-12-01 17:48:03,733 INFO Epoch 14/50, Aesthetic Phase, Train Loss: 4.45119109, Val Loss: 4.47228130
+2023-12-01 17:59:36,861 INFO Epoch 15/50, Aesthetic Phase, Train Loss: 4.44277659, Val Loss: 4.47228130
+2023-12-01 18:10:50,963 INFO Epoch 16/50, Aesthetic Phase, Train Loss: 4.44640347, Val Loss: 4.47228130
+2023-12-01 18:22:07,543 INFO Epoch 17/50, Aesthetic Phase, Train Loss: 4.44710267, Val Loss: 4.47228130
+2023-12-01 18:33:45,627 INFO Epoch 18/50, Aesthetic Phase, Train Loss: 4.44931828, Val Loss: 4.47228130
+2023-12-01 18:45:20,938 INFO Epoch 19/50, Aesthetic Phase, Learning Rate Changed from 1e-05 to 1.0000000000000002e-06
+2023-12-01 18:45:20,938 INFO Epoch 19/50, Aesthetic Phase, Train Loss: 4.45207500, Val Loss: 4.47228130
+2023-12-01 18:56:55,728 INFO Epoch 20/50, Aesthetic Phase, Train Loss: 4.45293403, Val Loss: 4.47228130
+2023-12-01 18:56:55,728 INFO Saving checkpoint...
+2023-12-01 19:08:09,989 INFO Epoch 21/50, Aesthetic Phase, Train Loss: 4.44499509, Val Loss: 4.47228130
+2023-12-01 19:18:55,903 INFO Epoch 22/50, Aesthetic Phase, Train Loss: 4.45316534, Val Loss: 4.47228130
+2023-12-01 19:29:47,398 INFO Epoch 23/50, Aesthetic Phase, Train Loss: 4.45228921, Val Loss: 4.47228130
+2023-12-01 19:40:51,908 INFO Epoch 24/50, Aesthetic Phase, Train Loss: 4.44944299, Val Loss: 4.47228130
+2023-12-01 19:52:06,115 INFO Epoch 25/50, Aesthetic Phase, Learning Rate Changed from 1.0000000000000002e-06 to 1.0000000000000002e-07
+2023-12-01 19:52:06,115 INFO Epoch 25/50, Aesthetic Phase, Train Loss: 4.44810428, Val Loss: 4.47228130
+2023-12-01 20:03:19,432 INFO Epoch 26/50, Aesthetic Phase, Train Loss: 4.44980654, Val Loss: 4.47228130
+2023-12-01 20:14:40,360 INFO Epoch 27/50, Aesthetic Phase, Train Loss: 4.44852147, Val Loss: 4.47228130
+2023-12-01 20:25:28,912 INFO Epoch 28/50, Aesthetic Phase, Train Loss: 4.45333790, Val Loss: 4.47228130
+2023-12-01 20:36:55,660 INFO Epoch 29/50, Aesthetic Phase, Train Loss: 4.44744010, Val Loss: 4.47228130
+2023-12-01 20:47:49,901 INFO Epoch 30/50, Aesthetic Phase, Train Loss: 4.45144810, Val Loss: 4.47228130
+2023-12-01 20:47:49,902 INFO Saving checkpoint...
+2023-12-01 20:59:04,259 INFO Epoch 31/50, Aesthetic Phase, Learning Rate Changed from 1.0000000000000002e-07 to 1.0000000000000004e-08
+2023-12-01 20:59:04,259 INFO Epoch 31/50, Aesthetic Phase, Train Loss: 4.45220427, Val Loss: 4.47228130
+2023-12-01 21:10:52,706 INFO Epoch 32/50, Aesthetic Phase, Train Loss: 4.45297131, Val Loss: 4.47228130
+2023-12-01 21:22:15,758 INFO Epoch 33/50, Aesthetic Phase, Train Loss: 4.45173831, Val Loss: 4.47228130
+2023-12-01 21:33:27,971 INFO Epoch 34/50, Aesthetic Phase, Train Loss: 4.44629606, Val Loss: 4.47228130
+2023-12-01 21:45:08,049 INFO Epoch 35/50, Aesthetic Phase, Train Loss: 4.44929874, Val Loss: 4.47228130
+2023-12-01 21:56:27,528 INFO Epoch 36/50, Aesthetic Phase, Train Loss: 4.44935567, Val Loss: 4.47228130
+2023-12-01 22:08:18,516 INFO Epoch 37/50, Aesthetic Phase, Train Loss: 4.44844909, Val Loss: 4.47228130
+2023-12-01 22:20:20,346 INFO Epoch 38/50, Aesthetic Phase, Train Loss: 4.45523102, Val Loss: 4.47228130
+2023-12-01 22:32:31,068 INFO Epoch 39/50, Aesthetic Phase, Train Loss: 4.45149991, Val Loss: 4.47228130
+2023-12-01 22:43:44,750 INFO Epoch 40/50, Aesthetic Phase, Train Loss: 4.44911794, Val Loss: 4.47228130
+2023-12-01 22:43:44,750 INFO Saving checkpoint...
+2023-12-01 22:54:14,835 INFO Epoch 41/50, Aesthetic Phase, Train Loss: 4.44607163, Val Loss: 4.47228130
+2023-12-01 23:04:33,942 INFO Epoch 42/50, Aesthetic Phase, Train Loss: 4.44902461, Val Loss: 4.47228130
+2023-12-01 23:14:32,623 INFO Epoch 43/50, Aesthetic Phase, Train Loss: 4.45537885, Val Loss: 4.47228130
+2023-12-01 23:24:32,863 INFO Epoch 44/50, Aesthetic Phase, Train Loss: 4.44559037, Val Loss: 4.47228130
+2023-12-01 23:35:03,659 INFO Epoch 45/50, Aesthetic Phase, Train Loss: 4.45552929, Val Loss: 4.47228130
+2023-12-01 23:45:28,641 INFO Epoch 46/50, Aesthetic Phase, Train Loss: 4.45028736, Val Loss: 4.47228130
+2023-12-01 23:54:40,283 INFO Epoch 47/50, Aesthetic Phase, Train Loss: 4.45071125, Val Loss: 4.47228130
+2023-12-02 00:03:57,667 INFO Epoch 48/50, Aesthetic Phase, Train Loss: 4.45075744, Val Loss: 4.47228130
+2023-12-02 00:13:07,706 INFO Epoch 49/50, Aesthetic Phase, Train Loss: 4.45103259, Val Loss: 4.47228130
+2023-12-02 00:22:12,103 INFO Epoch 50/50, Aesthetic Phase, Train Loss: 4.44397263, Val Loss: 4.47228130
+2023-12-02 00:22:12,104 INFO Saving checkpoint...
