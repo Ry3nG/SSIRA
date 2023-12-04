@@ -4,6 +4,7 @@
 # ignore the result
 /results/
 /result/
+/runs/
 
 # ignore all model file and log file
 *.pth
