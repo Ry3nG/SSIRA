@@ -2,7 +2,17 @@
 /dataset/
 
 # ignore the result
+/results/
 /result/
+
+# ignore all model file and log file
+*.pth
+*.log
+*.png
+
+# ignore all notebooks
+*.ipynb
+
 
 # python related
 *.pyc
