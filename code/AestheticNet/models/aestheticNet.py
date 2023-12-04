@@ -20,7 +20,7 @@ class AestheticNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(256, num_classes),
-            nn.Sigmoid()  # Use Sigmoid if the scores are normalized between 0 and 1
+            nn.Sigmoid()
         )
 
     def _get_flattened_size(self, input_image_size):
@@ -39,4 +39,5 @@ class AestheticNet(nn.Module):
             encoded_features = self.encoder(x)
             encoded_features = torch.flatten(encoded_features, 1)  # Flatten the features
             aesthetic_score = self.regression_head(encoded_features)
+            #print(aesthetic_score)
             return aesthetic_score
