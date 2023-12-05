@@ -4,6 +4,8 @@
 # ignore the result
 /results/
 /result/
+
+# tensorboard log
 /runs/
 
 # ignore all model file and log file
