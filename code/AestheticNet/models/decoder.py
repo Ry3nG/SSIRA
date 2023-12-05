@@ -22,7 +22,7 @@ class Decoder(nn.Module):
             nn.BatchNorm2d(128),
 
             nn.ConvTranspose2d(128, output_channels, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.Tanh()  # Adjust this based on your input normalization
+            nn.Sigmoid()
         )
 
     def forward(self, x):
