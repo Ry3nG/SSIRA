@@ -38,4 +38,4 @@ LR_PATIENCE = 5
 LR_FACTOR = 0.1
 LR_MODE = "min"
 LR_VERBOSE = True
-LR_MIN = 1e-8
+LR_MIN = 1e-5
