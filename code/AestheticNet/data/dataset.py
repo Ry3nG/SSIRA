@@ -41,8 +41,16 @@ class TAD66KDataset(Dataset):
 
     def __len__(self):
         return len(self.data_frame)
-
+    
     def __getitem__(self, idx):
+        if isinstance(idx, slice):
+        # Handle the slicing case
+            return [self.get_single_item(i) for i in range(*idx.indices(len(self.data_frame)))]
+
+        # Handle the single item case
+        return self.get_single_item(idx)
+
+    def get_single_item(self, idx):
         max_attempts = 10  # for instance
         for _ in range(max_attempts):
             try:
@@ -97,7 +105,6 @@ class AVADataset(Dataset):
             id_set_from_ava = set(self.data_frame[1])
 
             missing_ids = id_set_from_list.difference(id_set_from_ava)
-            logging.info(f"Missing IDs: {missing_ids}")
             logging.info(f"Number of missing IDs: {len(missing_ids)}")
 
             logging.info(f"Filtered dataset size: {len(self.data_frame)}")
@@ -110,8 +117,16 @@ class AVADataset(Dataset):
 
     def __len__(self):
         return len(self.data_frame)
-
+    
     def __getitem__(self, idx):
+        if isinstance(idx, slice):
+        # Handle the slicing case
+            return [self.get_single_item(i) for i in range(*idx.indices(len(self.data_frame)))]
+
+        # Handle the single item case
+        return self.get_single_item(idx)
+
+    def get_single_item(self, idx):
         max_attempts = 10  # Maximum number of attempts to find a valid image
         attempts = 0
 
