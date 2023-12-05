@@ -34,7 +34,7 @@ PATH_MODEL_RESULTS = "/home/zerui/SSIRA/code/AestheticNet/results/Models"
 PATH_PLOTS = "/home/zerui/SSIRA/code/AestheticNet/results/Plots"
 
 # learning rate scheduler constants
-LR_PATIENCE = 5
+LR_PATIENCE = 10
 LR_FACTOR = 0.1
 LR_MODE = "min"
 LR_VERBOSE = True

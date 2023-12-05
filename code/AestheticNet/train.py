@@ -240,7 +240,7 @@ def main():
 
     # define transforms
     custom_transform_options = list(range(24))
-    only_horizontal_flip = [22,23]
+    only_horizontal_flip = [22, 23]
 
     # initialize the model and loss function
     model = AestheticNet()
@@ -343,6 +343,12 @@ def main():
         shuffle=False,
         num_workers=NUM_WORKERS,
     )
+
+    # create logging plot save directory
+    if not os.path.exists(PATH_PLOTS):
+        os.makedirs(PATH_PLOTS)
+    saving_dir = os.path.join(PATH_PLOTS, "train_plot_" + tic)
+    os.makedirs(saving_dir)
 
     val_losses_pretext = []
     val_losses_aesthetic = []
@@ -447,6 +453,33 @@ def main():
         )
         logging.info(f"Pretext phase model saved at {pretext_checkpoint_path}")
 
+    plt.figure(figsize=(10, 5))
+    plt.plot(val_losses_pretext, label="Pretext Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Validation Losses Over Epochs")
+    plt.legend()
+    plt.savefig(os.path.join(saving_dir, "val_losses_pretext" + tic + ".png"))
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_losses_pretext, label="Pretext Training Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Training Losses Over Epochs")
+    plt.legend()
+    plt.savefig(os.path.join(saving_dir, "train_losses_pretext" + tic + ".png"))
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_losses_pretext, label="Pretext Training Loss")
+    plt.plot(val_losses_pretext, label="Pretext Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Training and Validation Losses Over Epochs")
+    plt.legend()
+    plt.savefig(os.path.join(saving_dir, "train_val_losses_pretext" + tic + ".png"))
+
+    # ---------------------------------Aesthetic Phase---------------------------------#
+
     # load the model for aesthetic phase
     if os.path.exists(pretext_checkpoint_path):
         (
@@ -512,36 +545,24 @@ def main():
 
     # At the end of aesthetic phase, save the final model
     final_model_path = save_training_checkpoint(
-        model, AES_NUM_EPOCHS, PATH_MODEL_RESULTS, "aestheticNet-final", tic,
-        optimizer_aesthetic, scheduler_aesthetic, scaler_aesthetic
+        model,
+        AES_NUM_EPOCHS,
+        PATH_MODEL_RESULTS,
+        "aestheticNet-final",
+        tic,
+        optimizer_aesthetic,
+        scheduler_aesthetic,
+        scaler_aesthetic,
     )
     logging.info(f"Final model saved at {final_model_path}")
 
-    # Plotting the validation loss (2 plots)
-    plt.figure(figsize=(10, 5))
-    plt.plot(val_losses_pretext, label="Pretext Validation Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.title("Validation Losses Over Epochs")
-    plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "val_losses_pretext"+tic+".png"))
-
     plt.figure(figsize=(10, 5))
     plt.plot(val_losses_aesthetic, label="Aesthetic Validation Loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.title("Validation Losses Over Epochs")
     plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "val_losses_aesthetic"+tic+".png"))
-    
-    # Plotting the training loss (2 plots)
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_losses_pretext, label="Pretext Training Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.title("Training Losses Over Epochs")
-    plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "train_losses_pretext"+tic+".png"))
+    plt.savefig(os.path.join(saving_dir, "val_losses_aesthetic" + tic + ".png"))
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses_aesthetic, label="Aesthetic Training Loss")
@@ -549,17 +570,7 @@ def main():
     plt.ylabel("Loss")
     plt.title("Training Losses Over Epochs")
     plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "train_losses_aesthetic"+tic+".png"))
-
-    # Plotting the train vs val loss (2 plots)
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_losses_pretext, label="Pretext Training Loss")
-    plt.plot(val_losses_pretext, label="Pretext Validation Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.title("Training and Validation Losses Over Epochs")
-    plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "train_val_losses_pretext"+tic+".png"))
+    plt.savefig(os.path.join(saving_dir, "train_losses_aesthetic" + tic + ".png"))
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses_aesthetic, label="Aesthetic Training Loss")
@@ -568,8 +579,7 @@ def main():
     plt.ylabel("Loss")
     plt.title("Training and Validation Losses Over Epochs")
     plt.legend()
-    plt.savefig(os.path.join(PATH_PLOTS, "train_val_losses_aesthetic"+tic+".png"))
-
+    plt.savefig(os.path.join(saving_dir, "train_val_losses_aesthetic" + tic + ".png"))
 
 
 if __name__ == "__main__":
