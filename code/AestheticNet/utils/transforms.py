@@ -3,6 +3,14 @@ import cv2 as cv
 import numpy as np
 from PIL import Image
 import math
+import torch
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)  # for multi-GPU
 
 def detail_enhance(image, sigma_s, sigma_r):
     degraded_img = cv.detailEnhance(image, sigma_s=sigma_s, sigma_r=sigma_r)
@@ -88,10 +96,18 @@ def rotate(image, deg):
     angle = deg
     scale = 0.8
 
+    # randonly apply clockwise or counterclockwise rotation
+    if random.random() > 0.5:
+        angle = -angle
+
     M = cv.getRotationMatrix2D(center, angle, scale)
     image_rotation = cv.warpAffine(src=image, M=M, dsize=(width, height), borderValue=(255, 255, 255))
 
     return image_rotation
+
+def horizontal_flip(image):
+    image = cv.flip(image, 1)
+    return image
 
 # Custom transform class
 class CustomTransform:
@@ -163,7 +179,7 @@ def image_manipulation(image, opt):
     elif opt == 21:
         return rotate(image, 15)
     elif opt == 22:
-        return rotate(image, -15)
+        return horizontal_flip(image)
     else:  # opt == 23 or any other case
         return image
 
