@@ -7,7 +7,7 @@
 
 # tensorboard log
 .0
-/runs/
+/tensorboard/
 .csv
 
 # ignore all model file and log file
