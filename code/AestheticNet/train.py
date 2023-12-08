@@ -10,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from data.dataset import TAD66KDataset, AVADataset
 
 from models.aestheticNet import AestheticNet
-from utils.losses import ReconstructionLoss, AestheticEMDLoss
+from utils.losses import ReconstructionLoss, AestheticScoreLoss
 from utils.constants import *
 from utils.transforms import CustomTransform
 
@@ -264,7 +264,7 @@ def main():
 
     # initialize the loss function
     criterion_pretext = ReconstructionLoss().to(device)
-    criterion_aesthetic = AestheticEMDLoss().to(device)
+    criterion_aesthetic = AestheticScoreLoss().to(device)
 
     # initialize the optimizer
     optimizer_pretext = AdamW(model.parameters(), lr=LEARNING_RATE_AES)
@@ -276,7 +276,7 @@ def main():
         mode=LR_MODE,
         factor=LR_FACTOR,
         patience=LR_PATIENCE,
-        verbose=LR_VERBOSE,
+        verbose=LR_VERBOSE, 
         min_lr=LR_MIN,
     )
     scheduler_aesthetic = optim.lr_scheduler.ReduceLROnPlateau(

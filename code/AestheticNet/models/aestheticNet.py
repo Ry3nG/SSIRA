@@ -36,6 +36,8 @@ class AestheticNet(nn.Module):
             reconstructed_image = self.decoder(encoded_features)
             return reconstructed_image
         elif phase == 'aesthetic':
+            for param in self.encoder.parameters():
+                param.requires_grad = False
             # In the aesthetic assessment phase, use only the encoder and regression head
             encoded_features = self.encoder(x)
             encoded_features = torch.flatten(encoded_features, 1)  # Flatten the features
