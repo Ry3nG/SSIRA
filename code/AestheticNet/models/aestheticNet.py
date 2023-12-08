@@ -15,9 +15,11 @@ class AestheticNet(nn.Module):
         self.regression_head = nn.Sequential(
             nn.Linear(self.flattened_size, 512),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
             nn.Dropout(0.5),
             nn.Linear(512, 256),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(256),
             nn.Dropout(0.5),
             nn.Linear(256, num_classes)
         )
