@@ -1,9 +1,0 @@
-2023-11-23 15:18:14,093 [INFO] Imported packages.
-2023-11-23 15:18:14,093 [INFO] Training script started on 2023-11-23 15:18:14.092691.
-2023-11-23 15:18:14,698 [INFO] Using device: cuda
-2023-11-23 15:18:14,719 [INFO] NVIDIA A100-PCIE-40GB
-2023-11-23 15:18:24,683 [INFO] Loaded model.
-2023-11-23 15:18:24,683 [INFO] Using 2 GPUs for training.
-2023-11-23 15:20:21,997 [INFO] Epoch [1/1000] Train loss: 0.0007
-2023-11-23 15:20:31,300 [INFO] Epoch [1/1000] Validation Loss: 0.0000, Avg Distance: 0.02
-2023-11-23 15:20:31,301 [INFO] ----------------------------------------------

@@ -1,13 +1,16 @@
 from matplotlib import pyplot as plt
+import pandas as pd
 import torch
 import torch.optim as optim
 from torch.optim import AdamW
 from torch.nn import DataParallel
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
+from torch.utils.tensorboard import SummaryWriter
 from data.dataset import TAD66KDataset, AVADataset
+
 from models.aestheticNet import AestheticNet
-from utils.losses import ReconstructionLoss, AestheticScoreLoss
+from utils.losses import ReconstructionLoss, AestheticEMDLoss
 from utils.constants import *
 from utils.transforms import CustomTransform
 
@@ -99,7 +102,15 @@ def parse_args():
 
 
 def train(
-    model, dataloader, criterion, optimizer, scaler, device, phase, epoch, total_epochs
+    model,
+    dataloader,
+    criterion,
+    optimizer,
+    scaler,
+    device,
+    phase,
+    epoch,
+    total_epochs,
 ):
     model.train()  # set model to training mode
     total_loss = 0.0
@@ -207,6 +218,9 @@ def main():
     # setup logging
     setup_logging(tic)
 
+    # Tensorboard writer
+    writer = SummaryWriter(log_dir=os.path.join(PATH_LOGS, "tensorboard", tic))
+
     # parse arguments
     logging.info("Parsing arguments...")
     args = parse_args()
@@ -250,7 +264,7 @@ def main():
 
     # initialize the loss function
     criterion_pretext = ReconstructionLoss().to(device)
-    criterion_aesthetic = AestheticScoreLoss().to(device)
+    criterion_aesthetic = AestheticEMDLoss().to(device)
 
     # initialize the optimizer
     optimizer_pretext = AdamW(model.parameters(), lr=LEARNING_RATE_AES)
@@ -283,8 +297,9 @@ def main():
     # initialize and split the datasets for training and validation
     ava_generic_train_id = read_ava_ids(PATH_AVA_GENERIC_TRAIN_IDS)
 
+    # "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/train_first_1000.csv"
     full_train_dataset_pretext = TAD66KDataset(
-        csv_file=PATH_LABEL_MERGE_TAD66K_TRAIN,
+        csv_file= PATH_LABEL_MERGE_TAD66K_TRAIN,
         root_dir=PATH_DATASET_TAD66K,
         custom_transform_options=custom_transform_options,
     )
@@ -412,7 +427,11 @@ def main():
                 PRETEXT_NUM_EPOCHS,
             )
             val_loss_pretext = validate(
-                model, val_loader_pretext, criterion_pretext, device, "pretext"
+                model,
+                val_loader_pretext,
+                criterion_pretext,
+                device,
+                "pretext",
             )
             old_lr = optimizer_pretext.param_groups[0]["lr"]
             scheduler_pretext.step(val_loss_pretext)
@@ -428,6 +447,9 @@ def main():
             logging.info(
                 f"Epoch {epoch+1}/{PRETEXT_NUM_EPOCHS}, Pretext Phase, Train Loss: {train_loss_pretext:.8f}, Val Loss: {val_loss_pretext:.8f}"
             )
+            writer.add_scalar("Validation Loss pretext", val_loss_pretext, epoch)
+            writer.add_scalar("Training Loss pretext", train_loss_pretext, epoch)
+
             # Save model at specified frequency
             if (epoch + 1) % SAVE_FREQ == 0 or epoch == PRETEXT_NUM_EPOCHS - 1:
                 logging.info("Saving checkpoint...")
@@ -514,7 +536,11 @@ def main():
             AES_NUM_EPOCHS,
         )
         val_loss_aesthetic = validate(
-            model, val_loader_aesthetic, criterion_aesthetic, device, "aesthetic"
+            model,
+            val_loader_aesthetic,
+            criterion_aesthetic,
+            device,
+            "aesthetic",
         )
         old_lr = optimizer_aesthetic.param_groups[0]["lr"]
         scheduler_aesthetic.step(val_loss_aesthetic)
@@ -525,6 +551,9 @@ def main():
             )
         val_losses_aesthetic.append(val_loss_aesthetic)
         train_losses_aesthetic.append(train_loss_aesthetic)
+
+        writer.add_scalar("Validation Loss aesthetic", val_loss_aesthetic, epoch)
+        writer.add_scalar("Training Loss aesthetic", train_loss_aesthetic, epoch)
 
         logging.info(
             f"Epoch {epoch+1}/{AES_NUM_EPOCHS}, Aesthetic Phase, Train Loss: {train_loss_aesthetic:.8f}, Val Loss: {val_loss_aesthetic:.8f}"
@@ -580,6 +609,27 @@ def main():
     plt.title("Training and Validation Losses Over Epochs")
     plt.legend()
     plt.savefig(os.path.join(saving_dir, "train_val_losses_aesthetic" + tic + ".png"))
+    writer.close()
+
+    # save the raw data of losses to a csv file
+    pretext_losses = {
+        "train_losses": train_losses_pretext,
+        "val_losses": val_losses_pretext,
+    }
+    pretext_losses_df = pd.DataFrame(pretext_losses)
+    pretext_losses_df.to_csv(
+        os.path.join(saving_dir, "pretext_losses" + tic + ".csv"), index=False
+    )
+
+    aesthetic_losses = {
+        "train_losses": train_losses_aesthetic,
+        "val_losses": val_losses_aesthetic,
+    }
+
+    aesthetic_losses_df = pd.DataFrame(aesthetic_losses)
+    aesthetic_losses_df.to_csv(
+        os.path.join(saving_dir, "aesthetic_losses" + tic + ".csv"), index=False
+    )
 
 
 if __name__ == "__main__":

@@ -1,79 +1,162 @@
 import torch
+from torch.nn import DataParallel
 from torch.utils.data import DataLoader
 from models.aestheticNet import AestheticNet
-from data.dataset import TAD66kDataset_Labeled
-from torch.nn import DataParallel
-from utils.constants import *
+from data.dataset import AVADataset
+from data.dataset_split import AVADataset_Split
+import matplotlib.pyplot as plt
 
-def load_model(model_path):
-    model = AestheticNet()
-    model = DataParallel(model)
-    
-    # Load the state dict with DataParallel structure
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint)
-    
-    model.eval()  # Set the model to evaluation mode
+from utils.constants import *
+from scipy.stats import spearmanr, pearsonr
+
+
+model_root_path = "/home/zerui/SSIRA/code/AestheticNet/results/Models/"
+model_name = "aestheticNet-checkpoint-aesthetic_epoch_69_2023-12-05_14-01-47.pth"
+model_path = model_root_path + model_name
+
+
+def calculate_srcc(preds, true_scores):
+    return spearmanr(preds, true_scores)[0]
+
+
+def calculate_plcc(preds, true_scores):
+    return pearsonr(preds, true_scores)[0]
+
+
+def calculate_binary_accuracy(preds, true_scores, threshold=5.0):
+    preds_binary = [1 if p >= threshold else 0 for p in preds]
+    true_scores_binary = [1 if t >= threshold else 0 for t in true_scores]
+    accurate_count = sum(p == t for p, t in zip(preds_binary, true_scores_binary))
+    return accurate_count / len(preds)
+
+
+def load_checkpoint(model, checkpoint_path, device):
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    state_dict = checkpoint["model_state_dict"]
+
+    # Adjust keys if model was trained using DataParallel
+    if list(state_dict.keys())[0].startswith("module."):
+        # Model saved with DataParallel, but current setup does not use it
+        new_state_dict = {
+            k[7:]: v for k, v in state_dict.items()
+        }  # Remove 'module.' prefix
+    else:
+        # Model saved without DataParallel, but current setup uses it
+        new_state_dict = {"module." + k: v for k, v in state_dict.items()}
+
+    model.load_state_dict(new_state_dict)
     return model
 
-def load_test_data(test_dataset_path, root_dir, batch_size=32, num_workers=4):
-    test_dataset = TAD66kDataset_Labeled(csv_file=test_dataset_path, root_dir=root_dir, custom_transform_options=[...])  # Ensure to pass all necessary arguments
-    test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
-    )
-    return test_loader
 
-def test_model(model, test_loader, device, threshold=0.5):
-    total_loss = 0
-    total_correct = 0
-    total_samples = 0
-
-    criterion = torch.nn.L1Loss()
-
-    with torch.no_grad():
-        for images, scores in test_loader:
-            images, scores = images.to(device), scores.to(device)
-            aesthetic_scores = model(images, phase='aesthetic')
-            aesthetic_scores = aesthetic_scores.view(-1)
-
-            loss = criterion(aesthetic_scores, scores)
-            total_loss += loss.item()
-
-            # Compute accuracy
-            correct_predictions = torch.abs(aesthetic_scores - scores) <= threshold
-            total_correct += correct_predictions.sum().item()
-            total_samples += scores.size(0)
-
-    avg_loss = total_loss / len(test_loader)
-    accuracy = total_correct / total_samples
-    return avg_loss, accuracy
+def denormalize(image):
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(-1, 1, 1).to(image.device)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(-1, 1, 1).to(image.device)
+    return image * std + mean
 
 
+def plot_and_save_images(
+    images,
+    predicted_scores,
+    ground_truth_scores,
+    filename="composite_image_" + model_name + ".png",
+):
+    num_images = len(images)
+    fig, axes = plt.subplots(1, num_images, figsize=(num_images * 5, 10))
+
+    for i in range(num_images):
+        ax = axes[i]
+        img = (
+            denormalize(images[i]).permute(1, 2, 0).numpy()
+        )  # Denormalize and convert from CxHxW to HxWxC
+        ax.imshow(img)
+        ax.axis("off")
+        ax.set_title(
+            f"Pred: {predicted_scores[i]:.2f}\nTrue: {ground_truth_scores[i]:.2f}"
+        )
+
+    plt.subplots_adjust()
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
 
 
+# Collect a small number of sample images for display
+sample_images = []
+sample_pred_scores = []
+sample_true_scores = []
 
-def main():
-    print("Starting test...")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_path = '/home/zerui/SSIRA/code/AestheticNet/results/Models/aestheticNet_shadowtrain.pth'  # Replace with your model's path
-    test_dataset_path = PATH_LABEL_MERGE_TAD66K_TEST  # Replace with your test dataset's path
-    root_dir = PATH_DATASET_TAD66K 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print(f"Using device: {device}")
-    model = load_model(model_path)
-    model.to(device)  # Move model to the appropriate device
+# Instantiate and load the model
+model = AestheticNet()
+model = load_checkpoint(model, model_path, device)
+model = model.to(device)
+model.eval()
 
-    print("Model loaded successfully.")
 
-    test_loader = load_test_data(test_dataset_path, root_dir)
-    print("Test data loaded successfully.")
+# Read AVA test IDs
+def read_ava_ids(file_path):
+    with open(file_path, "r") as file:
+        test_ids = [line.strip() for line in file]
+    return test_ids
 
-    avg_loss,accuracy = test_model(model, test_loader, device)
 
-    print(f"Average Test Loss: {avg_loss}")
-    print(f"Accuracy: {accuracy}")
+ava_test_ids = read_ava_ids(PATH_AVA_TEST_IDS)
 
-    print("Done.")
+# Create an instance of AVADataset for testing
+test_dataset = AVADataset(
+    txt_file=PATH_AVA_TXT,
+    root_dir=PATH_AVA_IMAGE,
+    custom_transform_options=[23],
+    default_transform=True,
+    include_ids=True,
+    ids=ava_test_ids,
+)
+test_dataset = AVADataset_Split(
+    csv_files=["/home/zerui/SSIRA/dataset/AVA_Split/test_hlagcn.csv"],
+    root_dir=PATH_AVA_IMAGE,
+    custom_transform_options=[23],
+    split="hlagcn",
+)
 
-if __name__ == "__main__":
-    main()
+# Create DataLoader for the test dataset
+test_loader = DataLoader(
+    test_dataset, batch_size=32, shuffle=False, num_workers=NUM_WORKERS
+)
+
+# Predict and evaluate
+predicted_scores = []
+ground_truth_scores = []
+
+with torch.no_grad():
+    for data in test_loader:
+        images = data[0]
+        scores = data[1]
+        images = images.to(device)
+        predicted_scores_batch = model(images, phase="aesthetic").squeeze().cpu()
+        predicted_scores.extend(predicted_scores_batch.tolist())
+        ground_truth_scores.extend(scores.tolist())
+
+        if len(sample_images) < 10:  # Corrected to stop collecting after enough samples
+            remaining_samples = 10 - len(sample_images)
+            sample_images.extend(images.cpu()[:remaining_samples])
+            sample_pred_scores.extend(
+                predicted_scores_batch[:remaining_samples].tolist()
+            )
+            sample_true_scores.extend(scores[:remaining_samples].tolist())
+
+# Calculate the metrics after the loop
+srcc = calculate_srcc(predicted_scores, ground_truth_scores)
+plcc = calculate_plcc(predicted_scores, ground_truth_scores)
+acc = calculate_binary_accuracy(predicted_scores, ground_truth_scores)
+
+# Calculate Mean Squared Error (MSE)
+mse = torch.mean(
+    (torch.tensor(predicted_scores) - torch.tensor(ground_truth_scores)) ** 2
+).item()
+
+# Output results
+print(f"SRCC: {srcc:.4f}, PLCC: {plcc:.4f}, Accuracy: {acc:.4f}, MSE: {mse:.4f}")
+
+# Plot and save sample images with scores
+plot_and_save_images(sample_images, sample_pred_scores, sample_true_scores)

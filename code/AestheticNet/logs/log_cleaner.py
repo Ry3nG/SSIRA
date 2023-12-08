@@ -10,7 +10,7 @@ print("log.log read")
 
 # for each line, delete line with text "Phase Pretext"
 for line in log_lines:
-    if "ERROR Error" in line:
+    if "Phase: pretext" in line:
         print(line)
         log_lines.remove(line)
         print("line removed")
