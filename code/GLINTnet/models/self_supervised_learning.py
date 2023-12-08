@@ -66,14 +66,6 @@ class ReconstructionHead(nn.Module):
         self.final_conv = nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.final_act = nn.Sigmoid()
 
-
-        # Apply Kaiming Initialization
-        nn.init.kaiming_normal_(self.conv1.weight, nonlinearity='relu')
-        nn.init.kaiming_normal_(self.conv2.weight, nonlinearity='relu')
-        nn.init.kaiming_normal_(self.conv3.weight, nonlinearity='relu')
-        nn.init.kaiming_normal_(self.conv4.weight, nonlinearity='relu')
-        nn.init.kaiming_normal_(self.final_conv.weight, nonlinearity='tanh')  # or 'sigmoid' if using Sigmoid
-
     def forward(self, x):
         x = self.conv1(x)
         #self.print_stats(x, "conv1")

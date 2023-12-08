@@ -22,11 +22,11 @@ BATCH_SIZE = 128
 PRETEXT_NUM_EPOCHS = 100
 AES_NUM_EPOCHS = 100
 
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-4
 NUM_WORKERS = 32
 TRAIN_VAL_SPLIT_RATIO = 0.9
 
-SAVE_FREQ = 10
+SAVE_FREQ = 5
 
 # logging constants
 PATH_LOGS = "/home/zerui/SSIRA/code/AestheticNet/logs"
@@ -34,8 +34,8 @@ PATH_MODEL_RESULTS = "/home/zerui/SSIRA/code/AestheticNet/results/Models"
 PATH_PLOTS = "/home/zerui/SSIRA/code/AestheticNet/results/Plots"
 
 # learning rate scheduler constants
-LR_PATIENCE = 10
+LR_PATIENCE = 5
 LR_FACTOR = 0.1
 LR_MODE = "min"
 LR_VERBOSE = True
-LR_MIN = 1e-5
+LR_MIN = 1e-7
