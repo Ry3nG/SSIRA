@@ -31,5 +31,6 @@ __pycache__/
 # ignore all hidden files
 .*
 
-# ignore all temporary files
+# ignore files like events.out.tfevents.1702045579.lily-gpu07.1564571.0
+events.out.tfevents.*
 
