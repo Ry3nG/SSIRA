@@ -10,12 +10,21 @@ PATH_LABEL_MERGE_TAD66K_TRAIN = (
     "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/train.csv"
 )
 
+
+# PATH AVA
 PATH_AVA_TXT = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/AVA.txt"
 PATH_AVA_IMAGE = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/image"
-PATH_AVA_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test.jpgl"
+PATH_AVA_TEST_IDS = (
+    "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test.jpgl"
+)
 
 PATH_AVA_GENERIC_TRAIN_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_ls_train_clean.jpgl"
 PATH_AVA_GENERIC_TEST_IDS = "/home/zerui/SSIRA/dataset/AVA/AVA_dataset/aesthetics_image_lists/generic_test_clean.jpgl"
+
+# PATH AVA SPLITS
+PATH_AVA_HLAGCN = "/home/zerui/SSIRA/dataset/AVA_Split/train_hlagcn.csv"
+PATH_AVA_MLSP = " /home/zerui/SSIRA/dataset/AVA_Split/train_mlsp.csv"
+
 # training constants
 BATCH_SIZE = 128
 

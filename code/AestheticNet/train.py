@@ -267,7 +267,7 @@ def main():
     criterion_aesthetic = AestheticScoreLoss().to(device)
 
     # initialize the optimizer
-    optimizer_pretext = AdamW(model.parameters(), lr=LEARNING_RATE_AES)
+    optimizer_pretext = AdamW(model.parameters(), lr=LEARNING_RATE_PRETEXT)
     optimizer_aesthetic = AdamW(model.parameters(), lr=LEARNING_RATE_AES)
 
     # Initialize the learning rate scheduler

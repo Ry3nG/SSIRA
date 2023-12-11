@@ -52,11 +52,15 @@ class AVADataset_Split(Dataset):
 
                 return (image, *sample_data)
             except (OSError, UnidentifiedImageError) as e:
-                logging.error(f"Error opening image: {img_name}, attempting next image.")
+                logging.error(
+                    f"Error opening image: {img_name}, attempting next image."
+                )
                 idx += 1  # Move to the next index
                 attempts += 1
 
-        raise RuntimeError(f"Could not find a valid image after {max_attempts} attempts.")
+        raise RuntimeError(
+            f"Could not find a valid image after {max_attempts} attempts."
+        )
 
     def _load_and_merge_data(self, csv_files: List[str], split: str) -> pd.DataFrame:
         data_frames = []
@@ -67,8 +71,18 @@ class AVADataset_Split(Dataset):
 
         # Ensure all dataframes have the required columns for hlagcn
         if split == "hlagcn":
-            for col in ["score_1", "score_2", "score_3", "score_4", "score_5",
-                       "score_6", "score_7", "score_8", "score_9", "score_10"]:
+            for col in [
+                "score_1",
+                "score_2",
+                "score_3",
+                "score_4",
+                "score_5",
+                "score_6",
+                "score_7",
+                "score_8",
+                "score_9",
+                "score_10",
+            ]:
                 if col not in merged_data.columns:
                     merged_data[col] = 0
 
@@ -82,7 +96,9 @@ class AVADataset_Split(Dataset):
             transform_list += [
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
             ]
         return transforms.Compose(transform_list)
 
@@ -101,13 +117,14 @@ class AVADataset_Split(Dataset):
 class TAD66KDataset_Split(Dataset):
     """TAD66K dataset with support for custom splits"""
 
-    def __init__(self,
-                 csv_file: str,
-                 root_dir: str,
-                 custom_transform_options: list = None,
-                 default_transform: bool = True,
-                 split: str = "default",
-                 ):
+    def __init__(
+        self,
+        csv_file: str,
+        root_dir: str,
+        custom_transform_options: list = None,
+        default_transform: bool = True,
+        split: str = "default",
+    ):
         if split not in ("default"):
             raise ValueError(f"Unsupported split: {split}")
 
@@ -136,20 +153,26 @@ class TAD66KDataset_Split(Dataset):
 
                 return image
             except (OSError, UnidentifiedImageError) as e:
-                logging.error(f"Error opening image: {img_name}, attempting next image.")
+                logging.error(
+                    f"Error opening image: {img_name}, attempting next image."
+                )
                 idx += 1  # Move to the next index
                 attempts += 1
 
-        raise RuntimeError(f"Could not find a valid image after {max_attempts} attempts.")
+        raise RuntimeError(
+            f"Could not find a valid image after {max_attempts} attempts."
+        )
 
-    def _build_transform(self, custom_transform_options: list, default_transform: bool) -> transforms.Compose:
+    def _build_transform(
+        self, custom_transform_options: list, default_transform: bool
+    ) -> transforms.Compose:
         transform_list = [CustomTransform(custom_transform_options)]
         if default_transform:
             transform_list += [
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224,
- 
-0.225]),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
             ]
         return transforms.Compose(transform_list)
