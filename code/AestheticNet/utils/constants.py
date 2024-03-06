@@ -26,14 +26,14 @@ PATH_AVA_HLAGCN = "/home/zerui/SSIRA/dataset/AVA_Split/train_hlagcn.csv"
 PATH_AVA_MLSP = " /home/zerui/SSIRA/dataset/AVA_Split/train_mlsp.csv"
 
 # training constants
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 
 PRETEXT_NUM_EPOCHS = 100
 AES_NUM_EPOCHS = 100
 
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-7
 NUM_WORKERS = 32
-TRAIN_VAL_SPLIT_RATIO = 0.9
+TRAIN_VAL_SPLIT_RATIO = 0.95
 
 SAVE_FREQ = 5
 
@@ -43,8 +43,8 @@ PATH_MODEL_RESULTS = "/home/zerui/SSIRA/code/AestheticNet/results/Models"
 PATH_PLOTS = "/home/zerui/SSIRA/code/AestheticNet/results/Plots"
 
 # learning rate scheduler constants
-LR_PATIENCE = 5
+LR_PATIENCE = 10
 LR_FACTOR = 0.1
 LR_MODE = "min"
 LR_VERBOSE = True
-LR_MIN = 1e-7
+LR_MIN = 1e-8

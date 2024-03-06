@@ -8,6 +8,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from data.dataset import TAD66KDataset, AVADataset
+from data.dataset_split import AVADataset_Split
 
 from models.aestheticNet import AestheticNet
 from utils.losses import ReconstructionLoss, AestheticScoreLoss
@@ -95,7 +96,7 @@ def parse_args():
         "--checkpoint_path",
         type=str,
         default=None,
-        help="Path to a saved checkpoint (default: None)",
+        help="Path to a saved checkpoint (default: None)", # /home/zerui/SSIRA/code/AestheticNet/results/Models/aestheticNet-ready-for-aesthetics.pth
     )
 
     return parser.parse_args()
@@ -114,7 +115,53 @@ def train(
 ):
     model.train()  # set model to training mode
     total_loss = 0.0
+    if phase == "pretext":
+        logging.info(f"Training in pretext phase, Epoch {epoch+1}/{total_epochs}")
+        for batch_idx, batch in enumerate(dataloader):
+            inputs = batch.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs, phase=phase)
+            loss = criterion(outputs, inputs)
 
+            # Scale loss and call backward
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            total_loss += loss.item()
+
+            if batch_idx % NUM_WORKERS == 0:
+                logging.info(
+                    f"Epoch {epoch+1}/{total_epochs}, Phase: {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.8f}"
+                )    
+    elif phase == "aesthetic":
+        
+        logging.info(f"Training in aesthetic phase, Epoch {epoch+1}/{total_epochs}")
+        for batch_idx, data in enumerate(dataloader):
+            images = data[0]
+            scores = data[1]
+            images, scores = images.to(device), scores.to(device)
+            optimizer.zero_grad()
+            outputs = model(images, phase=phase)
+            loss = criterion(outputs, scores)
+
+            # Scale loss and call backward
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            total_loss += loss.item()
+
+            # Logging batch level information
+            if batch_idx % NUM_WORKERS == 0:
+                logging.info(
+                    f"Epoch {epoch+1}/{total_epochs}, Phase: {phase}, Batch {batch_idx+1}/{len(dataloader)}, Loss: {loss.item():.8f}"
+                )
+
+
+    return total_loss / len(dataloader)
+
+    """
     for batch_idx, batch in enumerate(dataloader):
         if phase == "pretext":
             inputs = batch.to(device)
@@ -141,6 +188,7 @@ def train(
             )
 
     return total_loss / len(dataloader)
+    """
 
 
 def validate(model, dataloader, criterion, device, phase):
@@ -148,17 +196,20 @@ def validate(model, dataloader, criterion, device, phase):
     total_loss = 0.0
 
     with torch.no_grad():
-        for batch in dataloader:
-            if phase == "pretext":
+        if phase == "pretext":
+            for batch in dataloader:
                 inputs = batch.to(device)
                 outputs = model(inputs, phase=phase)
                 loss = criterion(outputs, inputs)
-            elif phase == "aesthetic":
-                images, scores = batch
+                total_loss += loss.item()
+        if phase == "aesthetic":
+            for data in dataloader:
+                images = data[0]
+                scores = data[1]
                 images, scores = images.to(device), scores.to(device)
                 outputs = model(images, phase=phase)
                 loss = criterion(outputs, scores)
-            total_loss += loss.item()
+                total_loss += loss.item()
 
     return total_loss / len(dataloader)
 
@@ -263,7 +314,7 @@ def main():
     model.to(device)
 
     # initialize the loss function
-    criterion_pretext = ReconstructionLoss().to(device)
+    criterion_pretext = ReconstructionLoss(device=device).to(device)
     criterion_aesthetic = AestheticScoreLoss().to(device)
 
     # initialize the optimizer
@@ -294,8 +345,6 @@ def main():
 
     logging.info("Model initialized.")
 
-    # initialize and split the datasets for training and validation
-    ava_generic_train_id = read_ava_ids(PATH_AVA_GENERIC_TRAIN_IDS)
 
     # "/home/zerui/SSIRA/dataset/TAD66K/labels/merge/train_first_1000.csv"
     full_train_dataset_pretext = TAD66KDataset(
@@ -309,13 +358,29 @@ def main():
     train_dataset_pretext, val_dataset_pretext = random_split(
         full_train_dataset_pretext, [train_size_pretext, val_size_pretext]
     )
-
+    
+    """
     full_train_dataset_aesthetic = AVADataset(
         txt_file=PATH_AVA_TXT,
         root_dir=PATH_AVA_IMAGE,
         custom_transform_options=only_horizontal_flip,
-        ids=ava_generic_train_id,
-        include_ids=True,
+        #ids=ava_generic_train_id,
+        #include_ids=True,
+    )
+    train_size_aesthetic = int(
+        TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_aesthetic)
+    )
+    val_size_aesthetic = len(full_train_dataset_aesthetic) - train_size_aesthetic
+    train_dataset_aesthetic, val_dataset_aesthetic = random_split(
+        full_train_dataset_aesthetic, [train_size_aesthetic, val_size_aesthetic]
+    )
+    """
+
+    full_train_dataset_aesthetic = AVADataset_Split(
+        csv_files = ["/home/zerui/SSIRA/dataset/AVA_Split/train_hlagcn.csv"],
+        root_dir = PATH_AVA_IMAGE,
+        custom_transform_options=[23],
+        split="hlagcn",
     )
     train_size_aesthetic = int(
         TRAIN_VAL_SPLIT_RATIO * len(full_train_dataset_aesthetic)
@@ -502,6 +567,9 @@ def main():
 
     # ---------------------------------Aesthetic Phase---------------------------------#
 
+    # handle checkpoint
+    if start_mode == 'aesthetic':
+        pretext_checkpoint_path = args.checkpoint_path
     # load the model for aesthetic phase
     if os.path.exists(pretext_checkpoint_path):
         (

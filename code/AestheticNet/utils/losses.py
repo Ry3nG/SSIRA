@@ -2,19 +2,72 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+def gaussian(window_size, sigma):
+    gauss = torch.Tensor([torch.exp(-torch.Tensor([(x - window_size//2)**2])/float(2*sigma**2)) for x in range(window_size)])
+    return gauss/gauss.sum()
 
+
+def _ssim(img1, img2, window, window_size, channel, size_average=True):
+    mu1 = F.conv2d(img1, window, padding=window_size//2, groups=channel)
+    mu2 = F.conv2d(img2, window, padding=window_size//2, groups=channel)
+
+    mu1_sq = mu1.pow(2)
+    mu2_sq = mu2.pow(2)
+    mu1_mu2 = mu1 * mu2
+
+    sigma1_sq = F.conv2d(img1 * img1, window, padding=window_size//2, groups=channel) - mu1_sq
+    sigma2_sq = F.conv2d(img2 * img2, window, padding=window_size//2, groups=channel) - mu2_sq
+    sigma12 = F.conv2d(img1 * img2, window, padding=window_size//2, groups=channel) - mu1_mu2
+
+    C1 = 0.01**2
+    C2 = 0.03**2
+
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+    
+    if size_average:
+        return ssim_map.mean()
+    else:
+        return ssim_map.mean(1).mean(1).mean(1)
+
+def create_window(window_size, channel, device):
+    _1D_window = gaussian(window_size, 1.5).unsqueeze(1).to(device)
+    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+    window = _2D_window.expand(channel, 1, window_size, window_size).contiguous()
+    return window
+
+class SSIM(nn.Module):
+    def __init__(self, window_size=11, size_average=True, device='cpu'):
+        super(SSIM, self).__init__()
+        self.window_size = window_size
+        self.size_average = size_average
+        self.channel = 1
+        self.device = device
+        self.window = create_window(window_size, self.channel, self.device)
+
+    def forward(self, img1, img2):
+        (_, channel, _, _) = img1.size()
+
+        if channel != self.channel:
+            self.window = create_window(self.window_size, channel, img1.device).type(img1.dtype)
+            self.channel = channel
+
+        return _ssim(img1, img2, self.window, self.window_size, channel, self.size_average)
+
+# And when you instantiate the SSIM in the ReconstructionLoss, pass the device:
 class ReconstructionLoss(nn.Module):
-    """
-    Reconstruction Loss for the self-supervised learning phase.
-    This can be a simple Mean Squared Error (MSE) loss
-    comparing the reconstructed image to the original image.
-    """
-
-    def __init__(self):
+    def __init__(self, window_size=11, size_average=True, device='cpu'):
         super(ReconstructionLoss, self).__init__()
+        self.ssim = SSIM(window_size, size_average, device)
 
-    def forward(self, reconstructed, original):
-        return F.mse_loss(reconstructed, original)
+    def forward(self, img1, img2):
+        return 1 - self.ssim(img1, img2)
+
+
+# In your main training script
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+criterion_pretext = ReconstructionLoss(device=device).to(device)
+
+
     
 class AestheticScoreLoss(nn.Module):
     # Aesthetic Score Loss for the supervised learning phase.
@@ -30,7 +83,7 @@ class AestheticScoreLoss(nn.Module):
             predicted_scores = predicted_scores.view(-1)  # Flatten the predicted_scores
 
         # Convert both tensors to float type
-        predicted_scores = predicted_scores.float()
+        predicted_scores = predicted_scores.float()*10 #0130 update, sigmoid so times 10
         true_scores = true_scores.float()
 
         return F.mse_loss(predicted_scores, true_scores)

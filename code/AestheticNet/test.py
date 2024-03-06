@@ -11,12 +11,12 @@ from scipy.stats import spearmanr, pearsonr
 
 
 model_root_path = "/home/zerui/SSIRA/code/AestheticNet/results/Models/"
-model_name = "aestheticNet-checkpoint-aesthetic_epoch_69_2023-12-05_14-01-47.pth"
+model_name = "aestheticNet-final_epoch_150_2023-12-24_21-42-30.pth"
 model_path = model_root_path + model_name
 
 
 def calculate_srcc(preds, true_scores):
-    return spearmanr(preds, true_scores)[0]
+    return spearmanr(preds, true_scores)[0] 
 
 
 def calculate_plcc(preds, true_scores):
@@ -104,14 +104,6 @@ def read_ava_ids(file_path):
 ava_test_ids = read_ava_ids(PATH_AVA_TEST_IDS)
 
 # Create an instance of AVADataset for testing
-test_dataset = AVADataset(
-    txt_file=PATH_AVA_TXT,
-    root_dir=PATH_AVA_IMAGE,
-    custom_transform_options=[23],
-    default_transform=True,
-    include_ids=True,
-    ids=ava_test_ids,
-)
 test_dataset = AVADataset_Split(
     csv_files=["/home/zerui/SSIRA/dataset/AVA_Split/test_hlagcn.csv"],
     root_dir=PATH_AVA_IMAGE,
@@ -133,7 +125,7 @@ with torch.no_grad():
         images = data[0]
         scores = data[1]
         images = images.to(device)
-        predicted_scores_batch = model(images, phase="aesthetic").squeeze().cpu()
+        predicted_scores_batch = model(images, phase="aesthetic").squeeze().cpu() # Denormalize the scores
         predicted_scores.extend(predicted_scores_batch.tolist())
         ground_truth_scores.extend(scores.tolist())
 
@@ -145,10 +137,18 @@ with torch.no_grad():
             )
             sample_true_scores.extend(scores[:remaining_samples].tolist())
 
+# normalize the scores
+#predicted_scores = [p*10 for p in predicted_scores]
+
 # Calculate the metrics after the loop
 srcc = calculate_srcc(predicted_scores, ground_truth_scores)
 plcc = calculate_plcc(predicted_scores, ground_truth_scores)
 acc = calculate_binary_accuracy(predicted_scores, ground_truth_scores)
+
+# save csv of predicted score vs ground truth score
+import pandas as pd
+df = pd.DataFrame({'pred': predicted_scores, 'gt': ground_truth_scores})
+df.to_csv('pred_gt.csv')
 
 # Calculate Mean Squared Error (MSE)
 mse = torch.mean(
