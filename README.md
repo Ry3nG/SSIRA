@@ -1,5 +1,6 @@
 # SSIRA (Self-Supervised Image Reconstruction and Aesthetics Assessment)
 > My URECA project on Self-Supervised-Image-Reconstruction-and-Aesthetics-Assessment
+
 A deep learning project that combines self-supervised learning with aesthetic assessment of images using a two-phase training approach.
 
 ## Project Overview
