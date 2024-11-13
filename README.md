@@ -1,30 +1,94 @@
-# SSIRA
-My URECA project on Self-Supervised-Image-Reconstruction-and-Aesthetics-Assessment
+# SSIRA (Self-Supervised Image Reconstruction and Aesthetics Assessment)
+> My URECA project on Self-Supervised-Image-Reconstruction-and-Aesthetics-Assessment
+A deep learning project that combines self-supervised learning with aesthetic assessment of images using a two-phase training approach.
 
-## Proposed Improvements for AestheticNet
-Step 1: Integrate Global and Local Feature Extraction
+## Project Overview
 
-* Inspiration: Adopt the multi-headed approach from TANet and Non-Local Blocks from BAID.
-* Implementation: Incorporate a dual-pathway in AestheticNet where one path focuses on global features (using a non-local block) and the other on local features. This could enhance the model's ability to assess images based on both detailed and holistic characteristics.
+SSIRA uses a novel architecture (AestheticNet) that learns image features through self-supervised reconstruction before fine-tuning for aesthetic score prediction. The model consists of:
+- An encoder based on ResNet50
+- A decoder for image reconstruction
+- A regression head for aesthetic score prediction
 
-Step 2: Adaptive Feature Integration
-* Inspiration: Style transfer elements from BAID and CDF-based loss from TANet.
-* Implementation: Implement an adaptive feature integration mechanism (similar to AdaIN) that aligns the features from the two pathways based on their relevance to the aesthetic task. However, instead of using style transfer directly, adapt the concept to align features based on aesthetic attributes.
+## Architecture
 
-Step 3: Self-Supervised Learning with Degradation and Reconstruction
-* Inspiration: Degradation focus of BAID.
-* Implementation: In the self-supervised phase, use manually degraded images (like in BAID) and task the network with reconstructing the original image. This phase would help the network learn robust features relevant to image quality and aesthetics.
+The training process occurs in two phases:
+1. **Pretext Phase**: The model learns to reconstruct images using an encoder-decoder architecture
+2. **Aesthetic Phase**: The learned features are used to predict aesthetic scores through a regression head
 
-Step 4: Supervised Fine-Tuning with Aesthetic Scores
-* Inspiration: The use of detailed metrics in TANet.
-* Implementation: After the self-supervised phase, fine-tune the network on a labeled dataset (like AVA) using aesthetic scores. Employ a loss function that accounts for both the distribution of scores (taking inspiration from TANet's CDF-based loss) and the accuracy of individual score predictions.
+### Key Components:
+- **Encoder**: Modified ResNet50 for feature extraction
+- **Decoder**: Transposed convolution layers for image reconstruction
+- **Regression Head**: Multi-layer perceptron for aesthetic score prediction
 
-Step 5: Incorporate Attention Mechanisms
-* Inspiration: Non-local blocks from BAID and the attention to detail in TANet.
-* Implementation: Integrate attention mechanisms to allow the model to focus on salient regions of the image that are more likely to influence aesthetic judgments.
+## Datasets
 
-Step 6: Model Evaluation and Tuning
-* Implementation: Use a combination of traditional metrics (like accuracy, MSE) and correlation-based metrics (like LCC, SRCC) for a comprehensive evaluation. Employ techniques like NAS (Neural Architecture Search) for optimizing the model architecture.
+The model trains on two datasets:
+- **TAD66K**: Used for self-supervised pretext training
+- **AVA Dataset**: Used for aesthetic score prediction training
 
-Step 7: Implementation of Efficient Training Strategies
-* Implementation: Given the complexity of the proposed model, implement efficient training strategies like mixed precision training and progressive resizing of images.
+## Requirements
+
+- PyTorch
+- torchvision
+- PIL
+- pandas
+- matplotlib
+- tensorboard
+
+## Training
+
+To train the model:
+
+```bash
+python train.py [arguments]
+```
+
+### Important Arguments:
+```
+--batch_size            Batch size for training (default: 32)
+--pretext_num_epochs    Number of epochs for pretext training
+--aes_num_epochs       Number of epochs for aesthetic training
+--learning_rate_pretext Learning rate for pretext phase
+--learning_rate_aesthetic Learning rate for aesthetic phase
+--checkpoint_path      Path to load a saved checkpoint
+```
+
+## Model Features
+
+- Mixed precision training for efficiency
+- Learning rate scheduling
+- Checkpoint saving and loading
+- TensorBoard integration for training visualization
+- Multi-GPU support through DataParallel
+
+## Training Visualization
+
+The training process generates:
+- Loss plots for both phases
+- TensorBoard logs
+- Detailed training logs
+- CSV files with training metrics
+
+## Project Structure
+
+```
+├── data/
+│   ├── dataset.py          # Dataset classes
+│   └── dataset_split.py    # Dataset splitting utilities
+├── models/
+│   ├── aestheticNet.py     # Main model architecture
+│   ├── encoder.py          # ResNet50-based encoder
+│   └── decoder.py          # Decoder architecture
+├── utils/
+│   ├── losses.py           # Loss functions
+│   ├── transforms.py       # Custom transformations
+│   └── constants.py        # Project constants
+└── train.py                # Training script
+```
+
+## Future Work
+
+- Implementation of global and local feature extraction
+- Integration of attention mechanisms
+- Adaptive feature integration
+- Enhanced self-supervised learning strategies
